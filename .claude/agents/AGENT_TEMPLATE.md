@@ -225,6 +225,102 @@ The agent will then handle all subsequent interactions according to its defined 
 
 Get to know your colleagues! This section introduces each team member as a person - their background, personality, and what makes them valuable to the team. Use these descriptions to understand who to collaborate with and why.
 
+## Useful Prompt Instructions for Users
+
+*Note: This section is for users who want to establish their own agent teams. Claude should ignore this section when processing the template.*
+
+### Quick Start - Create Your Agent Team
+
+**Option 1: Create full team from template (recommended)**
+```
+Fetch https://raw.githubusercontent.com/oranheim/AlphaPy/refs/heads/master/.claude/agents/AGENT_TEMPLATE.md and create a complete agent team for my project. Use the template structure but adapt the roles to my project's needs. My project is about [describe your project].
+```
+
+**Option 2: Create specific agents only**
+```
+Fetch https://raw.githubusercontent.com/oranheim/AlphaPy/refs/heads/master/.claude/agents/AGENT_TEMPLATE.md and create only these agents: backend-developer, frontend-developer, qa-engineer. Follow the template structure exactly.
+```
+
+### Learning from the Template
+
+**Study the template structure:**
+```
+Show me the agent template structure from https://raw.githubusercontent.com/oranheim/AlphaPy/refs/heads/master/.claude/agents/AGENT_TEMPLATE.md and explain how each section works.
+```
+
+**Understand agent collaboration:**
+```
+Using the AGENT_TEMPLATE.md, explain how agents should delegate work to each other and what collaboration patterns work best.
+```
+
+### Customizing for Your Project
+
+**Adapt existing personas:**
+```
+Fetch the AGENT_TEMPLATE.md and adapt the personas for a [your domain] project. Keep the structure but change the expertise areas to match [specific technologies/frameworks].
+```
+
+**Create new specialized agents:**
+```
+Based on the AGENT_TEMPLATE.md structure, create a new agent for [specific role, e.g., blockchain-developer, game-designer, data-scientist]. Follow the same format but with appropriate expertise.
+```
+
+### Advanced Usage
+
+**Create agents with specific tools:**
+```
+Using AGENT_TEMPLATE.md as reference, create agents but restrict the security-reviewer to only use Read and Grep tools, and give the performance-engineer access to profiling tools.
+```
+
+**Set up agent hierarchy:**
+```
+Create an agent team based on AGENT_TEMPLATE.md with clear delegation hierarchy where product-manager delegates to tech-lead who delegates to developers.
+```
+
+### Post-Creation Instructions
+
+After creating your agents:
+1. Save each agent as a separate `.md` file in `.claude/agents/`
+2. Use frontmatter format shown in template
+3. Register agents by exiting Claude and running `claude --resume`
+4. Activate agents with `/agents agent-name`
+
+### Tips for Success
+
+- **DO**: Use role names (backend-developer) not persona names (Rachel Green) in workflows
+- **DO**: Give each agent a clear specialty that doesn't overlap completely
+- **DO**: Include "When Invoked" section so agents know what to do immediately
+- **DON'T**: Include project state or metrics in agent definitions
+- **DON'T**: Make agents too similar - each should have unique value
+
+### Example: Creating a Minimal Team
+
+```
+I need just 3 agents for my startup MVP. Using AGENT_TEMPLATE.md, create:
+1. full-stack-developer (can handle everything)
+2. product-manager (user focus)  
+3. qa-engineer (quality gates)
+Make them collaborative but self-sufficient.
+```
+
+### Analyzing Your Existing Team
+
+```
+Read all .claude/agents/*.md files and analyze if this is a well-positioned team with clear boundaries. Should we hire additional specialists or optimize the current team? Provide recommendations for team composition.
+```
+
+### Repository-Specific Teams
+
+**For open source projects:**
+```
+Using AGENT_TEMPLATE.md, create agents suited for open source: maintainer, contributor-reviewer, documentation-writer, community-manager.
+```
+
+**For enterprise projects:**
+```
+Based on AGENT_TEMPLATE.md, create enterprise-focused agents: enterprise-architect, compliance-officer, change-manager, business-analyst.
+```
+
 ## ⚠️ Important Note on Names
 
 **The persona names (like "Alex Chen" or "Sophie Martinez") are for this guide only!** 
