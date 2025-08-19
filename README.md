@@ -38,11 +38,14 @@ This modernized fork maintains **100% compatibility** with the original API and 
 git clone https://github.com/yourusername/AlphaPy.git
 cd AlphaPy
 
-# Install with uv (without TensorFlow)
+# Install with uv (recommended - excludes TensorFlow)
+uv sync --all-groups --no-group tensorflow
+
+# Or install specific groups
 uv sync --group dev --group test --group ml-extras
 
-# Or install everything including TensorFlow
-uv sync --all-groups
+# Add TensorFlow if needed (Linux/Windows only)
+uv sync --group tensorflow
 ```
 
 ### Using pip

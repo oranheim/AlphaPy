@@ -97,8 +97,9 @@ Use specialized agents for focused tasks via `/agents <agent-name>`:
 
 ```bash
 # Package management
-uv sync --all-groups              # Full install (includes TensorFlow)
-uv sync --group dev --group test  # Minimal for development
+uv sync --all-groups --no-group tensorflow  # Full install (excludes TensorFlow)
+uv sync --group dev --group test           # Minimal for development
+uv sync --group tensorflow                  # Add TensorFlow if needed (Linux/Windows)
 uv add <package>                  # Add dependency
 uv add --group dev <package>      # Add dev dependency
 

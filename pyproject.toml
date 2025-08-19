@@ -1,6 +1,6 @@
 [project]
 name = "alphapy"
-version = "2.5.0"
+version = "3.0.0"
 description = "AlphaPy: A Machine Learning Pipeline for Speculators"
 authors = [
     { name = "Robert D. Scott II", email = "scottfree.analytics@scottfreellc.com" },
