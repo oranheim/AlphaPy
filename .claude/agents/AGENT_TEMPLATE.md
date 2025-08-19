@@ -10,7 +10,7 @@ Copy this template and modify for your new agent:
 ---
 name: your-agent-name
 description: Invoke for [specific tasks]. Use when [trigger conditions].
-model: sonnet
+model: [sonnet|optus] # only either of them are valid
 color: [COLOR_FROM_COLOR_PALLET]
 ---
 
