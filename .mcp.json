@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "pkg-local": {
+      "command": "node",
+      "args": ["/Users/oranheim/PycharmProjects/descoped/mcp-pkg-local/dist/index.js"],
+      "env": {
+        "DEBUG": "mcp-pkg-local:*"
+      }
+    }
+  }
+}

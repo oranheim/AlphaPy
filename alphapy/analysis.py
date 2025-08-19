@@ -26,18 +26,14 @@
 # Imports
 #
 
+import logging
+
+import pandas as pd
+
 from alphapy.__main__ import main_pipeline
-from alphapy.frame import load_frames
-from alphapy.frame import sequence_frame
-from alphapy.frame import write_frame
+from alphapy.frame import load_frames, sequence_frame, write_frame
 from alphapy.globals import SSEP, TAG_ID, USEP
 from alphapy.utilities import subtract_days
-
-from datetime import timedelta
-import logging
-import pandas as pd
-from pandas.tseries.offsets import BDay
-
 
 #
 # Initialize logger
@@ -49,6 +45,7 @@ logger = logging.getLogger(__name__)
 #
 # Function analysis_name
 #
+
 
 def analysis_name(gname, target):
     r"""Get the name of the analysis.
@@ -74,7 +71,8 @@ def analysis_name(gname, target):
 # Class Analysis
 #
 
-class Analysis(object):
+
+class Analysis:
     """Create a new analysis for a group. All analyses are stored
     in ``Analysis.analyses``. Duplicate keys are not allowed.
 
@@ -92,30 +90,26 @@ class Analysis(object):
 
     """
 
-    analyses = {}
+    analyses: dict[str, "Analysis"] = {}
 
     # __new__
 
-    def __new__(cls,
-                model,
-                group):
+    def __new__(cls, model, group):
         # set analysis name
-        name = model.specs['directory'].split(SSEP)[-1]
-        target = model.specs['target']
+        name = model.specs["directory"].split(SSEP)[-1]
+        target = model.specs["target"]
         an = analysis_name(name, target)
-        if not an in Analysis.analyses:
-            return super(Analysis, cls).__new__(cls)
+        if an not in Analysis.analyses:
+            return super().__new__(cls)
         else:
             logger.info("Analysis %s already exists", an)
 
     # function __init__
 
-    def __init__(self,
-                 model,
-                 group):
+    def __init__(self, model, group):
         # set analysis name
-        name = model.specs['directory'].split(SSEP)[-1]
-        target = model.specs['target']
+        name = model.specs["directory"].split(SSEP)[-1]
+        target = model.specs["target"]
         an = analysis_name(name, target)
         # initialize analysis
         self.name = an
@@ -134,8 +128,8 @@ class Analysis(object):
 # Function run_analysis
 #
 
-def run_analysis(analysis, lag_period, forecast_period, leaders,
-                 predict_history, splits=True):
+
+def run_analysis(analysis, lag_period, forecast_period, leaders, predict_history, splits=True):
     r"""Run an analysis for a given model and group.
 
     First, the data are loaded for each member of the analysis group.
@@ -169,7 +163,6 @@ def run_analysis(analysis, lag_period, forecast_period, leaders,
 
     # Unpack analysis
 
-    name = analysis.name
     model = analysis.model
     group = analysis.group
 
@@ -181,13 +174,13 @@ def run_analysis(analysis, lag_period, forecast_period, leaders,
 
     # Unpack model specifications
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    predict_date = model.specs['predict_date']
-    predict_mode = model.specs['predict_mode']
-    separator = model.specs['separator']
-    target = model.specs['target']
-    train_date = model.specs['train_date']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    predict_date = model.specs["predict_date"]
+    predict_mode = model.specs["predict_mode"]
+    separator = model.specs["separator"]
+    target = model.specs["target"]
+    train_date = model.specs["train_date"]
 
     # Calculate split date
     logger.info("Analysis Dates")
@@ -214,8 +207,8 @@ def run_analysis(analysis, lag_period, forecast_period, leaders,
     for df in data_frames:
         try:
             tag = df[TAG_ID].unique()[0]
-        except:
-            tag = 'Unknown'
+        except (KeyError, IndexError):
+            tag = "Unknown"
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", tag, first_date, last_date)
@@ -227,8 +220,7 @@ def run_analysis(analysis, lag_period, forecast_period, leaders,
             if len(new_predict) > 0:
                 predict_frame = predict_frame.append(new_predict)
             else:
-                logger.info("Prediction frame %s has zero rows. Check prediction date.",
-                            tag)
+                logger.info("Prediction frame %s has zero rows. Check prediction date.", tag)
         else:
             # split data into train and test
             new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
@@ -247,24 +239,20 @@ def run_analysis(analysis, lag_period, forecast_period, leaders,
                     # append selected records to the test frame
                     test_frame = test_frame.append(new_test)
                 else:
-                    logger.info("Testing frame %s has zero rows. Check prediction date.",
-                                tag)
+                    logger.info("Testing frame %s has zero rows. Check prediction date.", tag)
             else:
                 logger.info("Training frame %s has zero rows. Check data source.", tag)
 
     # Write out the frames for input into the AlphaPy pipeline
 
-    directory = SSEP.join([directory, 'input'])
+    directory = SSEP.join([directory, "input"])
     if predict_mode:
         # write out the predict frame
-        write_frame(predict_frame, directory, predict_file, extension, separator,
-                    index=True, index_label='date')
+        write_frame(predict_frame, directory, predict_file, extension, separator, index=True, index_label="date")
     else:
         # write out the train and test frames
-        write_frame(train_frame, directory, train_file, extension, separator,
-                    index=True, index_label='date')
-        write_frame(test_frame, directory, test_file, extension, separator,
-                    index=True, index_label='date')
+        write_frame(train_frame, directory, train_file, extension, separator, index=True, index_label="date")
+        write_frame(test_frame, directory, test_file, extension, separator, index=True, index_label="date")
 
     # Run the AlphaPy pipeline
     analysis.model = main_pipeline(model)

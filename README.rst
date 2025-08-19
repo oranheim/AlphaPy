@@ -14,7 +14,7 @@ some of the things you can do with AlphaPy:
 * Create models for analyzing the markets with *MarketFlow*.
 * Predict sporting events with *SportFlow*.
 * Develop trading systems and analyze portfolios using *MarketFlow*
-  and Quantopian's ``pyfolio``.
+  and ``pyfolio-reloaded``.
 
 .. image:: https://github.com/Alpha314/AlphaPy/blob/master/images/model_pipeline.png
     :width: 100%
@@ -40,17 +40,12 @@ AlphaPy::
 
     pip install -U alphapy
 
-Pyfolio
-~~~~~~~
+Pyfolio-Reloaded
+~~~~~~~~~~~~~~~~
 
-Pyfolio is automatically installed by AlphaPy, but if you encounter
-the following error when trying to create a tear sheet:
-
-    *AttributeError: 'numpy.int64' object has no attribute 'to_pydatetime'*
-
-Install pyfolio with this command:
-
-    pip install git+https://github.com/quantopian/pyfolio
+AlphaPy now uses ``pyfolio-reloaded``, the actively maintained fork of the
+original Quantopian pyfolio package. It is automatically installed with AlphaPy
+and provides all the same functionality with better compatibility for modern Python.
 
 XGBoost
 ~~~~~~~

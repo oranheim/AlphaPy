@@ -29,8 +29,8 @@
 import calendar
 import logging
 import math
-import pandas as pd
 
+import pandas as pd
 
 #
 # Initialize logger
@@ -43,25 +43,27 @@ logger = logging.getLogger(__name__)
 # Function expand_dates
 #
 
+
 def expand_dates(date_list):
     expanded_dates = []
     for item in date_list:
-        if type(item) == str:
+        if isinstance(item, str):
             expanded_dates.append(item)
-        elif type(item) == list:
+        elif isinstance(item, list):
             start_date = item[0]
             end_date = item[1]
             dates_dt = pd.date_range(start_date, end_date).tolist()
-            dates_str = [x.strftime('%Y-%m-%d') for x in dates_dt]
+            dates_str = [x.strftime("%Y-%m-%d") for x in dates_dt]
             expanded_dates.extend(dates_str)
         else:
-            logger.info("Error in date: %s" % item)
+            logger.info(f"Error in date: {item}")
     return expanded_dates
 
 
 #
 # Function biz_day_month
 #
+
 
 def biz_day_month(rdate):
     r"""Calculate the business day of the month.
@@ -104,6 +106,7 @@ def biz_day_month(rdate):
 # Function biz_day_week
 #
 
+
 def biz_day_week(rdate):
     r"""Calculate the business day of the week.
 
@@ -139,6 +142,7 @@ def biz_day_week(rdate):
 # Function day_of_week
 #
 
+
 def day_of_week(rdate):
     r"""Get the ordinal day of the week.
 
@@ -159,6 +163,7 @@ def day_of_week(rdate):
 #
 # Function day_of_year
 #
+
 
 def day_of_year(gyear, gmonth, gday):
     r"""Calculate the day number of the given calendar year.
@@ -185,6 +190,7 @@ def day_of_year(gyear, gmonth, gday):
 # Function days_left_in_year
 #
 
+
 def days_left_in_year(gyear, gmonth, gday):
     r"""Calculate the number of days remaining in the calendar year.
 
@@ -209,6 +215,7 @@ def days_left_in_year(gyear, gmonth, gday):
 #
 # Function first_kday
 #
+
 
 def first_kday(k, gyear, gmonth, gday):
     r"""Calculate the first kday in RDate format.
@@ -237,6 +244,7 @@ def first_kday(k, gyear, gmonth, gday):
 # Function gdate_to_rdate
 #
 
+
 def gdate_to_rdate(gyear, gmonth, gday):
     r"""Convert Gregorian date to RDate format.
 
@@ -262,19 +270,23 @@ def gdate_to_rdate(gyear, gmonth, gday):
     else:
         rfactor = -2
 
-    rdate = 365 * (gyear - 1) \
-            + math.floor((gyear - 1) / 4) \
-            - math.floor((gyear - 1) / 100) \
-            + math.floor((gyear - 1) / 400) \
-            + math.floor(((367 * gmonth) - 362) / 12) \
-            + gday + rfactor
-    return(rdate)
+    rdate = (
+        365 * (gyear - 1)
+        + math.floor((gyear - 1) / 4)
+        - math.floor((gyear - 1) / 100)
+        + math.floor((gyear - 1) / 400)
+        + math.floor(((367 * gmonth) - 362) / 12)
+        + gday
+        + rfactor
+    )
+    return rdate
 
 
 #
 # Function get_nth_kday_of_month
 #
-    
+
+
 def get_nth_kday_of_month(gday, gmonth, gyear):
     r"""Convert Gregorian date to RDate format.
 
@@ -308,6 +320,7 @@ def get_nth_kday_of_month(gday, gmonth, gyear):
 # Function get_rdate
 #
 
+
 def get_rdate(row):
     r"""Extract RDate from a dataframe.
 
@@ -321,12 +334,13 @@ def get_rdate(row):
     rdate : int
         RDate date format.
     """
-    return gdate_to_rdate(row['year'], row['month'], row['day'])
+    return gdate_to_rdate(row["year"], row["month"], row["day"])
 
 
 #
 # Function kday_after
 #
+
 
 def kday_after(rdate, k):
     r"""Calculate the day after a given RDate.
@@ -351,6 +365,7 @@ def kday_after(rdate, k):
 # Function kday_before
 #
 
+
 def kday_before(rdate, k):
     r"""Calculate the day before a given RDate.
 
@@ -373,6 +388,7 @@ def kday_before(rdate, k):
 #
 # Function kday_nearest
 #
+
 
 def kday_nearest(rdate, k):
     r"""Calculate the day nearest a given RDate.
@@ -397,6 +413,7 @@ def kday_nearest(rdate, k):
 # Function kday_on_after
 #
 
+
 def kday_on_after(rdate, k):
     r"""Calculate the day on or after a given RDate.
 
@@ -420,6 +437,7 @@ def kday_on_after(rdate, k):
 # Function kday_on_before
 #
 
+
 def kday_on_before(rdate, k):
     r"""Calculate the day on or before a given RDate.
 
@@ -442,6 +460,7 @@ def kday_on_before(rdate, k):
 #
 # Function last_kday
 #
+
 
 def last_kday(k, gyear, gmonth, gday):
     r"""Calculate the last kday in RDate format.
@@ -470,6 +489,7 @@ def last_kday(k, gyear, gmonth, gday):
 # Function leap_year
 #
 
+
 def leap_year(gyear):
     r"""Determine if this is a Gregorian leap year.
 
@@ -484,7 +504,7 @@ def leap_year(gyear):
         True if a Gregorian leap year, else False.
     """
 
-    mod1 = (gyear % 4 == 0)
+    mod1 = gyear % 4 == 0
     mod2 = True
     if gyear % 100 == 0:
         mod2 = gyear % 400 == 0
@@ -498,6 +518,7 @@ def leap_year(gyear):
 #
 # Function next_event
 #
+
 
 def next_event(rdate, events):
     r"""Find the next event after a given date.
@@ -516,7 +537,7 @@ def next_event(rdate, events):
     """
     try:
         event = next(e for e in events if e > rdate)
-    except:
+    except StopIteration:
         event = 0
     return event
 
@@ -524,6 +545,7 @@ def next_event(rdate, events):
 #
 # Function next_holiday
 #
+
 
 def next_holiday(rdate, holidays):
     r"""Find the next holiday after a given date.
@@ -542,7 +564,7 @@ def next_holiday(rdate, holidays):
     """
     try:
         holiday = next(h for h in sorted(holidays.values()) if h > rdate)
-    except:
+    except StopIteration:
         holiday = 0
     return holiday
 
@@ -550,6 +572,7 @@ def next_holiday(rdate, holidays):
 #
 # Function nth_bizday
 #
+
 
 def nth_bizday(n, gyear, gmonth):
     r"""Calculate the nth business day in a month.
@@ -573,7 +596,7 @@ def nth_bizday(n, gyear, gmonth):
     holidays = set_holidays(gyear, True)
     ibd = 0
     idate = rdate
-    while (ibd < n):
+    while ibd < n:
         dw = day_of_week(idate)
         week_day = dw >= 1 and dw <= 5
         if week_day and idate not in holidays.values():
@@ -586,6 +609,7 @@ def nth_bizday(n, gyear, gmonth):
 #
 # Function nth_kday
 #
+
 
 def nth_kday(n, k, gyear, gmonth, gday):
     r"""Calculate the nth-kday in RDate format.
@@ -610,16 +634,14 @@ def nth_kday(n, k, gyear, gmonth, gday):
     """
 
     rdate = gdate_to_rdate(gyear, gmonth, gday)
-    if n > 0:
-        nthkday = 7 * n + kday_before(rdate, k)
-    else:
-        nthkday = 7 * n + kday_after(rdate, k)
+    nthkday = 7 * n + kday_before(rdate, k) if n > 0 else 7 * n + kday_after(rdate, k)
     return nthkday
 
 
 #
 # Function previous_event
 #
+
 
 def previous_event(rdate, events):
     r"""Find the previous event before a given date.
@@ -638,7 +660,7 @@ def previous_event(rdate, events):
     """
     try:
         event = next(e for e in sorted(events, reverse=True) if e < rdate)
-    except:
+    except StopIteration:
         event = 0
     return event
 
@@ -646,6 +668,7 @@ def previous_event(rdate, events):
 #
 # Function previous_holiday
 #
+
 
 def previous_holiday(rdate, holidays):
     r"""Find the previous holiday before a given date.
@@ -664,7 +687,7 @@ def previous_holiday(rdate, holidays):
     """
     try:
         holiday = next(h for h in sorted(holidays.values(), reverse=True) if h < rdate)
-    except:
+    except StopIteration:
         holiday = 0
     return holiday
 
@@ -672,6 +695,7 @@ def previous_holiday(rdate, holidays):
 #
 # Function rdate_to_gdate
 #
+
 
 def rdate_to_gdate(rdate):
     r"""Convert RDate format to Gregorian date format.
@@ -709,6 +733,7 @@ def rdate_to_gdate(rdate):
 # Function rdate_to_gyear
 #
 
+
 def rdate_to_gyear(rdate):
     r"""Convert RDate format to Gregorian year.
 
@@ -733,16 +758,14 @@ def rdate_to_gyear(rdate):
     n1 = math.floor(d3 / 365)
 
     theyear = 400 * n400 + 100 * n100 + 4 * n4 + n1
-    if n100 == 4 or n1 == 4:
-        gyear = theyear
-    else:
-        gyear = theyear + 1
+    gyear = theyear if n100 == 4 or n1 == 4 else theyear + 1
     return gyear
 
 
 #
 # Function set_events
 #
+
 
 def set_events(n, k, gyear, gday):
     r"""Define monthly events for a given year.
@@ -781,6 +804,7 @@ def set_events(n, k, gyear, gday):
 # Function subtract_dates
 #
 
+
 def subtract_dates(gyear1, gmonth1, gday1, gyear2, gmonth2, gday2):
     r"""Calculate the difference between two Gregorian dates.
 
@@ -804,10 +828,8 @@ def subtract_dates(gyear1, gmonth1, gday1, gyear2, gmonth2, gday2):
     delta_days : int
         Difference in days in RDate format.
     """
-    delta_days = gdate_to_rdate(gyear2, gmonth2, gday2) \
-                 - gdate_to_rdate(gyear1, gmonth1, gday1)
+    delta_days = gdate_to_rdate(gyear2, gmonth2, gday2) - gdate_to_rdate(gyear1, gmonth1, gday1)
     return delta_days
-
 
 
 #
@@ -818,6 +840,7 @@ def subtract_dates(gyear1, gmonth1, gday1, gyear2, gmonth2, gday2):
 #
 # Function new_years_day
 #
+
 
 def new_years_day(gyear, observed):
     r"""Get New Year's day for a given year.
@@ -844,6 +867,7 @@ def new_years_day(gyear, observed):
 # Function mlk_day
 #
 
+
 def mlk_day(gyear):
     r"""Get Martin Luther King Day for a given year.
 
@@ -864,6 +888,7 @@ def mlk_day(gyear):
 #
 # Function valentines_day
 #
+
 
 def valentines_day(gyear):
     r"""Get Valentine's day for a given year.
@@ -886,6 +911,7 @@ def valentines_day(gyear):
 # Function presidents_day
 #
 
+
 def presidents_day(gyear):
     r"""Get President's Day for a given year.
 
@@ -906,6 +932,7 @@ def presidents_day(gyear):
 #
 # Function saint_patricks_day
 #
+
 
 def saint_patricks_day(gyear):
     r"""Get Saint Patrick's day for a given year.
@@ -930,6 +957,7 @@ def saint_patricks_day(gyear):
 # Function good_friday
 #
 
+
 def good_friday(gyear):
     r"""Get Good Friday for a given year.
 
@@ -951,6 +979,7 @@ def good_friday(gyear):
 # Function easter_day
 #
 
+
 def easter_day(gyear):
     r"""Get Easter Day for a given year.
 
@@ -966,12 +995,8 @@ def easter_day(gyear):
     """
 
     century = math.floor(gyear / 100) + 1
-    epacts = (14 + 11 * (gyear % 19) - math.floor(3 * century / 4) \
-             + math.floor((5 + 8 * century) / 25)) % 30
-    if epacts == 0 or (epacts == 1 and 10 < (gyear % 19)):
-        epacta = epacts + 1
-    else:
-        epacta = epacts
+    epacts = (14 + 11 * (gyear % 19) - math.floor(3 * century / 4) + math.floor((5 + 8 * century) / 25)) % 30
+    epacta = epacts + 1 if epacts == 0 or (epacts == 1 and gyear % 19 > 10) else epacts
     rdate = gdate_to_rdate(gyear, 4, 19) - epacta
     ed = kday_after(rdate, 0)
     return ed
@@ -980,6 +1005,7 @@ def easter_day(gyear):
 #
 # Function cinco_de_mayo
 #
+
 
 def cinco_de_mayo(gyear):
     r"""Get Cinco de Mayo for a given year.
@@ -1002,6 +1028,7 @@ def cinco_de_mayo(gyear):
 # Function mothers_day
 #
 
+
 def mothers_day(gyear):
     r"""Get Mother's Day for a given year.
 
@@ -1022,6 +1049,7 @@ def mothers_day(gyear):
 #
 # Function memorial_day
 #
+
 
 def memorial_day(gyear):
     r"""Get Memorial Day for a given year.
@@ -1044,6 +1072,7 @@ def memorial_day(gyear):
 # Function fathers_day
 #
 
+
 def fathers_day(gyear):
     r"""Get Father's Day for a given year.
 
@@ -1064,6 +1093,7 @@ def fathers_day(gyear):
 #
 # Function independence_day
 #
+
 
 def independence_day(gyear, observed):
     r"""Get Independence Day for a given year.
@@ -1093,6 +1123,7 @@ def independence_day(gyear, observed):
 # Function labor_day
 #
 
+
 def labor_day(gyear):
     r"""Get Labor Day for a given year.
 
@@ -1114,6 +1145,7 @@ def labor_day(gyear):
 # Function halloween
 #
 
+
 def halloween(gyear):
     r"""Get Halloween for a given year.
 
@@ -1134,6 +1166,7 @@ def halloween(gyear):
 #
 # Function veterans_day
 #
+
 
 def veterans_day(gyear, observed):
     r"""Get Veteran's day for a given year.
@@ -1160,6 +1193,7 @@ def veterans_day(gyear, observed):
 # Function thanksgiving_day
 #
 
+
 def thanksgiving_day(gyear):
     r"""Get Thanksgiving Day for a given year.
 
@@ -1180,6 +1214,7 @@ def thanksgiving_day(gyear):
 #
 # Function christmas_day
 #
+
 
 def christmas_day(gyear, observed):
     r"""Get Christmas Day for a given year.
@@ -1209,28 +1244,31 @@ def christmas_day(gyear, observed):
 # Define holiday map
 #
 
-holiday_map = {"New Year's Day"    : (new_years_day, True),
-               "MLK Day"           : (mlk_day, False),
-               "Valentine's Day"   : (valentines_day, False),
-               "President's Day"   : (presidents_day, False),
-               "St. Patrick's Day" : (saint_patricks_day, False),
-               "Good Friday"       : (good_friday, False),
-               "Easter"            : (easter_day, False),
-               "Cinco de Mayo"     : (cinco_de_mayo, False),
-               "Mother's Day"      : (mothers_day, False),
-               "Memorial Day"      : (memorial_day, False),
-               "Father's Day"      : (fathers_day, False),
-               "Independence Day"  : (independence_day, True),
-               "Labor Day"         : (labor_day, False),
-               "Halloween"         : (halloween, False),
-               "Veteran's Day"     : (veterans_day, True),
-               "Thanksgiving"      : (thanksgiving_day, False),
-               "Christmas"         : (christmas_day, True)}
+holiday_map = {
+    "New Year's Day": (new_years_day, True),
+    "MLK Day": (mlk_day, False),
+    "Valentine's Day": (valentines_day, False),
+    "President's Day": (presidents_day, False),
+    "St. Patrick's Day": (saint_patricks_day, False),
+    "Good Friday": (good_friday, False),
+    "Easter": (easter_day, False),
+    "Cinco de Mayo": (cinco_de_mayo, False),
+    "Mother's Day": (mothers_day, False),
+    "Memorial Day": (memorial_day, False),
+    "Father's Day": (fathers_day, False),
+    "Independence Day": (independence_day, True),
+    "Labor Day": (labor_day, False),
+    "Halloween": (halloween, False),
+    "Veteran's Day": (veterans_day, True),
+    "Thanksgiving": (thanksgiving_day, False),
+    "Christmas": (christmas_day, True),
+}
 
 
 #
 # Function get_holiday_names
 #
+
 
 def get_holiday_names():
     r"""Get the list of defined holidays.
@@ -1240,13 +1278,14 @@ def get_holiday_names():
     holidays : list of str
         List of holiday names.
     """
-    holidays = [h for h in holiday_map]
+    holidays = list(holiday_map)
     return holidays
 
 
 #
 # Function set_holidays
 #
+
 
 def set_holidays(gyear, observe):
     r"""Determine if this is a Gregorian leap year.

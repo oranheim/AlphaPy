@@ -28,7 +28,6 @@
 
 from enum import Enum, unique
 
-
 #
 # Global Variables
 #
@@ -37,13 +36,13 @@ from enum import Enum, unique
 # Delimiters
 #
 
-BSEP = ' '
-CSEP = ':'
-PSEP = '.'
-SSEP = '/'
-USEP = '_'
-LOFF = '['
-ROFF = ']'
+BSEP = " "
+CSEP = ":"
+PSEP = "."
+SSEP = "/"
+USEP = "_"
+LOFF = "["
+ROFF = "]"
 
 #
 # Numerical Constants
@@ -57,26 +56,26 @@ Q3 = 0.75
 # String Constants
 #
 
-NULLTEXT = 'NULLTEXT'
-TAG_ID = 'tag'
-WILDCARD = '*'
+NULLTEXT = "NULLTEXT"
+TAG_ID = "tag"
+WILDCARD = "*"
 
 #
 # Dictionaries
 #
 
-MULTIPLIERS = {'crypto' : 1.0,
-               'stock' : 1.0}
+MULTIPLIERS = {"crypto": 1.0, "stock": 1.0}
 
 #
 # Pandas Time Offset Aliases
 #
 
-PD_INTRADAY_OFFSETS = ['H', 'T', 'min', 'S', 'L', 'ms', 'U', 'us', 'N']
+PD_INTRADAY_OFFSETS = ["H", "T", "min", "S", "L", "ms", "U", "us", "N"]
 
 #
 # Encoder Types
 #
+
 
 @unique
 class Encoders(Enum):
@@ -89,6 +88,7 @@ class Encoders(Enum):
     .. [ENC] https://github.com/scikit-learn-contrib/categorical-encoding
 
     """
+
     backdiff = 1
     basen = 2
     binary = 3
@@ -110,6 +110,7 @@ class Encoders(Enum):
 # Model Types
 #
 
+
 @unique
 class ModelType(Enum):
     """AlphaPy Model Types.
@@ -118,6 +119,7 @@ class ModelType(Enum):
        implemented.
 
     """
+
     classification = 1
     clustering = 2
     multiclass = 3
@@ -129,6 +131,7 @@ class ModelType(Enum):
 # Objective Functions
 #
 
+
 @unique
 class Objective(Enum):
     """Scoring Function Objectives.
@@ -139,6 +142,7 @@ class Objective(Enum):
     is minimized.
 
     """
+
     maximize = 1
     minimize = 2
 
@@ -146,6 +150,7 @@ class Objective(Enum):
 #
 # Class Orders
 #
+
 
 class Orders:
     """System Order Types.
@@ -166,23 +171,24 @@ class Orders:
         short exit at the end of the holding period
 
     """
-    le = 'le'
-    se = 'se'
-    lx = 'lx'
-    sx = 'sx'
-    lh = 'lh'
-    sh = 'sh'
+
+    le = "le"
+    se = "se"
+    lx = "lx"
+    sx = "sx"
+    lh = "lh"
+    sh = "sh"
 
 
 #
 # Partition Types
 #
 
+
 @unique
 class Partition(Enum):
-    """AlphaPy Partitions.
+    """AlphaPy Partitions."""
 
-    """
     predict = 1
     test = 2
     train = 3
@@ -191,6 +197,7 @@ class Partition(Enum):
 #
 # Sampling Methods
 #
+
 
 @unique
 class SamplingMethod(Enum):
@@ -203,6 +210,7 @@ class SamplingMethod(Enum):
     .. [IMB] https://github.com/scikit-learn-contrib/imbalanced-learn
 
     """
+
     ensemble_bc = 1
     ensemble_easy = 2
     over_random = 3
@@ -222,6 +230,7 @@ class SamplingMethod(Enum):
 # Scaler Types
 #
 
+
 @unique
 class Scalers(Enum):
     """AlphaPy Scalers.
@@ -233,6 +242,7 @@ class Scalers(Enum):
     .. [SCALE] http://scikit-learn.org/stable/modules/preprocessing.html
 
     """
+
     minmax = 1
     standard = 2
 
@@ -241,6 +251,4 @@ class Scalers(Enum):
 # Datasets
 #
 
-datasets = {Partition.train   : 'train',
-            Partition.test    : 'test',
-            Partition.predict : 'predict'}
+datasets = {Partition.train: "train", Partition.test: "test", Partition.predict: "predict"}

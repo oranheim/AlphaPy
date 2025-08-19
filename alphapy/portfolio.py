@@ -26,21 +26,17 @@
 # Imports
 #
 
-from alphapy.frame import Frame
-from alphapy.frame import frame_name
-from alphapy.frame import read_frame
-from alphapy.frame import write_frame
-from alphapy.globals import MULTIPLIERS, SSEP
-from alphapy.globals import Orders
-from alphapy.space import Space
-
 import logging
 import math
-import numpy as np
-from pandas import DataFrame
-from pandas import date_range
-from pandas import Series
+from datetime import datetime
+from typing import Any
 
+import numpy as np
+from pandas import DataFrame, Series, date_range
+
+from alphapy.frame import Frame, frame_name, write_frame
+from alphapy.globals import MULTIPLIERS, SSEP, Orders
+from alphapy.space import Space
 
 #
 # Initialize logger
@@ -53,7 +49,8 @@ logger = logging.getLogger(__name__)
 # Function portfolio_name
 #
 
-def portfolio_name(group_name, tag):
+
+def portfolio_name(group_name: str, tag: str) -> str:
     """
     Return the name of the portfolio.
 
@@ -70,7 +67,7 @@ def portfolio_name(group_name, tag):
         Portfolio name.
 
     """
-    port_name = '.'.join([group_name, tag, "portfolio"])
+    port_name = ".".join([group_name, tag, "portfolio"])
     return port_name
 
 
@@ -78,7 +75,8 @@ def portfolio_name(group_name, tag):
 # Class Portfolio
 #
 
-class Portfolio():
+
+class Portfolio:
     """Create a new portfolio with a unique name. All portfolios
     are stored in ``Portfolio.portfolios``.
 
@@ -137,56 +135,61 @@ class Portfolio():
 
     # class variable to track all portfolios
 
-    portfolios = {}
+    portfolios: dict[str, "Portfolio"] = {}
 
     # __new__
-    
-    def __new__(cls,
-                group_name,
-                tag,
-                space = Space(),
-                maxpos = 10,
-                posby = 'close',
-                kopos = 0,
-                koby = '-profit',
-                restricted = False,
-                weightby = 'quantity',
-                startcap = 100000,
-                margin = 0.5,
-                mincash = 0.2,
-                fixedfrac = 0.1,
-                maxloss = 0.1):
+
+    def __new__(
+        cls,
+        group_name: str,
+        tag: str,
+        space: Space = Space(),
+        maxpos: int = 10,
+        posby: str = "close",
+        kopos: int = 0,
+        koby: str = "-profit",
+        restricted: bool = False,
+        weightby: str = "quantity",
+        startcap: float = 100000,
+        margin: float = 0.5,
+        mincash: float = 0.2,
+        fixedfrac: float = 0.1,
+        maxloss: float = 0.1,
+    ):
         # create portfolio name
         pn = portfolio_name(group_name, tag)
-        if not pn in Portfolio.portfolios:
-            return super(Portfolio, cls).__new__(cls)
+        if pn not in Portfolio.portfolios:
+            return super().__new__(cls)
         else:
             logger.info("Portfolio %s already exists", pn)
-    
+            return None
+
     # __init__
-    
-    def __init__(self,
-                 group_name,
-                 tag,
-                 space = Space(),
-                 maxpos = 10,
-                 posby = 'close',
-                 kopos = 0,
-                 koby = '-profit',
-                 restricted = False,
-                 weightby = 'quantity',
-                 startcap = 100000,
-                 margin = 0.5,
-                 mincash = 0.2,
-                 fixedfrac = 0.1,
-                 maxloss = 0.1):
+
+    def __init__(
+        self,
+        group_name: str,
+        tag: str,
+        space: Space = Space(),
+        maxpos: int = 10,
+        posby: str = "close",
+        kopos: int = 0,
+        koby: str = "-profit",
+        restricted: bool = False,
+        weightby: str = "quantity",
+        startcap: float = 100000,
+        margin: float = 0.5,
+        mincash: float = 0.2,
+        fixedfrac: float = 0.1,
+        maxloss: float = 0.1,
+    ) -> None:
         # initialization
         self.group_name = group_name
         self.tag = tag
         self.space = space
-        self.positions = {}
-        self.startdate = None
-        self.enddate = None
+        self.positions: dict[str, Position] = {}
+        self.startdate: datetime | None = None
+        self.enddate: datetime | None = None
         self.npos = 0
         self.maxpos = maxpos
         self.posby = posby
@@ -194,7 +197,7 @@ class Portfolio():
         self.koby = koby
         self.restricted = restricted
         self.weightby = weightby
-        self.weights = []
+        self.weights: list[float] = []
         self.startcap = startcap
         self.cash = startcap
         self.margin = margin
@@ -212,13 +215,14 @@ class Portfolio():
 
     # __str__
 
-    def __str__(self):
+    def __str__(self) -> str:
         return portfolio_name(self.group_name, self.tag)
 
 
 #
 # Class Position
 #
+
 
 class Position:
     """Create a new position in the portfolio.
@@ -268,40 +272,38 @@ class Position:
         Multiple for instrument type (e.g., 1.0 for stocks).
 
     """
-    
+
     # __init__
-    
-    def __init__(self,
-                 portfolio,
-                 name,
-                 opendate):
+
+    def __init__(self, portfolio: "Portfolio", name: str, opendate: datetime) -> None:
         space = portfolio.space
         self.date = opendate
         self.name = name
-        self.status = 'opened'
-        self.mpos = 'flat'
-        self.quantity = 0
+        self.status = "opened"
+        self.mpos = "flat"
+        self.quantity = 0.0
         self.price = 0.0
         self.value = 0.0
         self.profit = 0.0
         self.netreturn = 0.0
         self.opened = opendate
-        self.held = 0
+        self.held: int | Any = 0
         self.costbasis = 0.0
-        self.trades = []
+        self.trades: list[Trade] = []
         self.ntrades = 0
-        self.pdata = Frame.frames[frame_name(name, space)].df
+        self.pdata: DataFrame = Frame.frames[frame_name(name, space)].df
         self.multiplier = MULTIPLIERS[space.subject]
 
     # __str__
-    
-    def __str__(self):
+
+    def __str__(self) -> str:
         return self.name
 
 
 #
 # Class Trade
 #
+
 
 class Trade:
     """Initiate a trade.
@@ -325,17 +327,12 @@ class Trade:
         Trade state names for a dataframe.
 
     """
-    
-    states = ['name', 'order', 'quantity', 'price']
+
+    states: list[str] = ["name", "order", "quantity", "price"]
 
     # __init__
 
-    def __init__(self,
-                 name,
-                 order,
-                 quantity,
-                 price,
-                 tdate):
+    def __init__(self, name: str, order: str, quantity: int | float, price: str | float, tdate: datetime) -> None:
         self.name = name
         self.order = order
         self.quantity = float(quantity)
@@ -347,7 +344,8 @@ class Trade:
 # Function add_position
 #
 
-def add_position(p, name, pos):
+
+def add_position(p: Portfolio, name: str, pos: Position) -> Portfolio:
     r"""Add a position to a portfolio.
 
     Parameters
@@ -374,7 +372,8 @@ def add_position(p, name, pos):
 # Function remove_position
 #
 
-def remove_position(p, name):
+
+def remove_position(p: Portfolio, name: str) -> Portfolio:
     r"""Remove a position from a portfolio by name.
 
     Parameters
@@ -398,7 +397,8 @@ def remove_position(p, name):
 # Function valuate_position
 #
 
-def valuate_position(position, tdate):
+
+def valuate_position(position: Position, tdate: str | datetime) -> Position:
     r"""Valuate the position for the given date.
 
     Parameters
@@ -437,12 +437,12 @@ def valuate_position(position, tdate):
     # get current price
     pdata = position.pdata
     if tdate in pdata.index:
-        cp = float(pdata.loc[tdate]['close'])
+        cp = float(pdata.loc[tdate]["close"])
         # start valuation
         multiplier = position.multiplier
-        netpos = 0
-        tts = 0     # total traded shares
-        ttv = 0     # total traded value
+        netpos = 0.0
+        tts = 0.0  # total traded shares
+        ttv = 0.0  # total traded value
         totalprofit = 0.0
         for trade in position.trades:
             tq = trade.quantity
@@ -468,7 +468,8 @@ def valuate_position(position, tdate):
 # Function update_position
 #
 
-def update_position(position, trade):
+
+def update_position(position: Position, trade: Trade) -> Position:
     r"""Add the new trade to the position and revalue.
 
     Parameters
@@ -487,12 +488,12 @@ def update_position(position, trade):
     position.trades.append(trade)
     position.ntrades = position.ntrades + 1
     position.date = trade.tdate
-    position.held = trade.tdate - position.opened
+    position.held = (trade.tdate - position.opened).days
     position = valuate_position(position, trade.tdate)
     if position.quantity > 0:
-        position.mpos = 'long'
+        position.mpos = "long"
     if position.quantity < 0:
-        position.mpos = 'short'
+        position.mpos = "short"
     return position
 
 
@@ -500,7 +501,8 @@ def update_position(position, trade):
 # Function close_position
 #
 
-def close_position(p, position, tdate):
+
+def close_position(p: Portfolio, position: Position, tdate: str | datetime) -> Portfolio:
     r"""Close the position and remove it from the portfolio.
 
     Parameters
@@ -522,22 +524,30 @@ def close_position(p, position, tdate):
     # if necessary, put on an offsetting trade
     if pq != 0:
         tradesize = -pq
-        position.date = tdate
+        if isinstance(tdate, str):
+            from datetime import datetime
+
+            position.date = datetime.fromisoformat(tdate)
+        else:
+            position.date = tdate
         pdata = position.pdata
-        cp = pdata.loc[tdate]['close']
-        newtrade = Trade(position.name, tradesize, cp, tdate)
+        cp = pdata.loc[tdate]["close"]
+        order = Orders.lx if tradesize > 0 else Orders.sx
+        tdate_dt = datetime.fromisoformat(tdate) if isinstance(tdate, str) else tdate
+        newtrade = Trade(position.name, order, tradesize, float(cp), tdate_dt)
         p = update_portfolio(p, position, newtrade)
         position.quantity = 0
-    position.status = 'closed'
+    position.status = "closed"
     p = remove_position(p, position.name)
     return p
 
-    
+
 #
 # Function deposit_portfolio
 #
 
-def deposit_portfolio(p, cash, tdate):
+
+def deposit_portfolio(p: Portfolio, cash: float, tdate: str | datetime) -> Portfolio:
     r"""Deposit cash into a given portfolio.
 
     Parameters
@@ -564,7 +574,8 @@ def deposit_portfolio(p, cash, tdate):
 # Function withdraw_portfolio
 #
 
-def withdraw_portfolio(p, cash, tdate):
+
+def withdraw_portfolio(p: Portfolio, cash: float, tdate: str | datetime) -> Portfolio:
     r"""Withdraw cash from a given portfolio.
 
     Parameters
@@ -596,7 +607,8 @@ def withdraw_portfolio(p, cash, tdate):
 # Function update_portfolio
 #
 
-def update_portfolio(p, pos, trade):
+
+def update_portfolio(p: Portfolio, pos: Position, trade: Trade) -> Portfolio:
     r"""Update the portfolio positions.
 
     Parameters
@@ -620,7 +632,8 @@ def update_portfolio(p, pos, trade):
     cpq = abs(pos.quantity)
     npq = cpq - ppq
     # update portfolio
-    p.date = trade.tdate
+    # Portfolio doesn't have a date attribute - this seems to be an error
+    # p.date = trade.tdate
     multiplier = pos.multiplier
     cv = trade.price * multiplier * npq
     p.cash -= cv
@@ -631,7 +644,8 @@ def update_portfolio(p, pos, trade):
 # Function delete_portfolio
 #
 
-def delete_portfolio(p):
+
+def delete_portfolio(p: Portfolio) -> None:
     r"""Delete the portfolio.
 
     Parameters
@@ -646,7 +660,7 @@ def delete_portfolio(p):
     """
     positions = p.positions
     for key in positions:
-        p = close_position(p, positions[key])
+        p = close_position(p, positions[key], None)  # type: ignore
     del p
 
 
@@ -654,7 +668,8 @@ def delete_portfolio(p):
 # Function balance
 #
 
-def balance(p, tdate, cashlevel):
+
+def balance(p: Portfolio, tdate: str | datetime, cashlevel: float) -> Portfolio:
     r"""Balance the portfolio using a weighting variable.
 
     Rebalancing is the process of equalizing a portfolio's positions
@@ -699,10 +714,9 @@ def balance(p, tdate, cashlevel):
 
     """
     currentcash = p.cash
-    mincash = p.mincash
     weightby = p.weightby
     if not weightby:
-        weightby = 'close'
+        weightby = "close"
     p = valuate_portfolio(p, tdate)
     pvalue = p.value - cashlevel * p.value
     positions = p.positions
@@ -713,29 +727,32 @@ def balance(p, tdate, cashlevel):
         weightby = weightby[1:]
     else:
         invert = False
-    attrs = [aname for aname in dir(positions[0]) if not aname.startswith('_')]
-    for i, pos in enumerate(positions):
-        if weightby in attrs:
-            estr = '.'.join('pos', weightby)
-            bdata[i] = eval(estr)
+    # Security fix: Replace eval() with safe attribute access
+    # Whitelist of valid Position attributes for financial calculations
+    valid_attrs = {"quantity", "price", "value", "profit", "netreturn", "costbasis", "held", "multiplier", "ntrades"}
+
+    for i, (_pos_name, pos) in enumerate(positions.items()):
+        if weightby in valid_attrs:
+            # Safe attribute access instead of eval()
+            bdata[i] = float(getattr(pos, weightby, 0.0))
         else:
-            bdata[i] = pos.pdata.loc[tdate][weightby]
-    if invert:
-        bweights = (2 * bdata.mean() - bdata) / sum(bdata)
-    else:
-        bweights = bdata / sum(bdata)
+            # Access from price data (pandas DataFrame)
+            bdata[i] = float(pos.pdata.loc[tdate][weightby])
+    bweights = (2 * bdata.mean() - bdata) / sum(bdata) if invert else bdata / sum(bdata)
     # rebalance
-    for i, pos in enumerate(positions):
+    for i, (_pos_name, pos) in enumerate(positions.items()):
         multiplier = pos.multiplier
         bdelta = bweights[i] * pvalue - pos.value
-        cp = pos.pdata.loc[tdate]['close']
+        cp = pos.pdata.loc[tdate]["close"]
         tradesize = math.trunc(bdelta / cp)
         ntv = abs(tradesize) * cp * multiplier
         if tradesize > 0:
             order = Orders.le
-        if tradesize < 0:
+        elif tradesize < 0:
             order = Orders.se
-        exec_trade(p, pos.name, order, tradesize, cp, tdate)
+        else:
+            continue
+        exec_trade(p, pos.name, order, float(abs(tradesize)), float(cp), tdate)
         p.cash = currentcash + bdelta - ntv
     return p
 
@@ -744,7 +761,8 @@ def balance(p, tdate, cashlevel):
 # Function kick_out
 #
 
-def kick_out(p, tdate):
+
+def kick_out(p: Portfolio, tdate: str | datetime) -> Portfolio:
     r"""Trim the portfolio based on filter criteria.
 
     To reduce a portfolio's positions, AlphaPy can rank the
@@ -780,22 +798,26 @@ def kick_out(p, tdate):
     kovalue = np.zeros(numpos)
     koby = p.koby
     if not koby:
-        koby = 'profit'
+        koby = "profit"
     if koby[0] == "-":
         descending = True
         koby = koby[1:]
     else:
         descending = False
-    attrs = [aname for aname in dir(positions[0]) if not aname.startswith('_')]
-    for i, pos in enumerate(positions):
-        if koby in attrs:
-            estr = '.'.join('pos', koby)
-            kovalue[i] = eval(estr)
+    # Security fix: Replace eval() with safe attribute access
+    # Whitelist of valid Position attributes for ranking/knockout calculations
+    valid_attrs = {"quantity", "price", "value", "profit", "netreturn", "costbasis", "held", "multiplier", "ntrades"}
+
+    for i, (_pos_name, pos) in enumerate(positions.items()):
+        if koby in valid_attrs:
+            # Safe attribute access instead of eval()
+            kovalue[i] = float(getattr(pos, koby, 0.0))
         else:
-            kovalue[i] = pos.pdata.loc[tdate][koby]
-    koorder = np.argsort(np.argsort(kovalues))
+            # Access from price data (pandas DataFrame)
+            kovalue[i] = float(pos.pdata.loc[tdate][koby])
+    koorder = np.argsort(np.argsort(kovalue))
     if descending:
-        koorder = [i for i in reversed(koorder)]
+        koorder = koorder[::-1]
     if numpos >= maxpos:
         freepos = numpos - maxpos + p.kopos
         # close the top freepos positions
@@ -809,7 +831,8 @@ def kick_out(p, tdate):
 # Function stop_loss
 #
 
-def stop_loss(p, tdate):
+
+def stop_loss(p: Portfolio, tdate: str | datetime) -> Portfolio:
     r"""Trim the portfolio based on stop-loss criteria.
 
     Parameters
@@ -848,7 +871,8 @@ def stop_loss(p, tdate):
 # Function valuate_portfolio
 #
 
-def valuate_portfolio(p, tdate):
+
+def valuate_portfolio(p: Portfolio, tdate: str | datetime) -> Portfolio:
     r"""Value the portfolio based on the current positions.
 
     Parameters
@@ -866,8 +890,8 @@ def valuate_portfolio(p, tdate):
     """
     positions = p.positions
     poslen = len(positions)
-    vpos = [0] * poslen
-    p.weights = [0] * poslen
+    vpos = [0.0] * poslen
+    p.weights = [0.0] * poslen
     posenum = enumerate(positions)
     # save the current portfolio value
     prev_value = p.value
@@ -894,7 +918,8 @@ def valuate_portfolio(p, tdate):
 # Function allocate_trade
 #
 
-def allocate_trade(p, pos, trade):
+
+def allocate_trade(p: Portfolio, pos: Position, trade: Trade) -> float:
     r"""Determine the trade allocation for a given portfolio.
 
     Parameters
@@ -929,8 +954,7 @@ def allocate_trade(p, pos, trade):
         cashreserve = mincash * cash
         freemargin = (cash - cashreserve) / margin
         if addedvalue > freemargin:
-            logger.info("Required free margin: %d < added value: %d",
-                        freemargin, addedvalue)
+            logger.info("Required free margin: %d < added value: %d", freemargin, addedvalue)
             allocation = 0
         else:
             freecash = cash - addedvalue
@@ -943,7 +967,15 @@ def allocate_trade(p, pos, trade):
 # Function exec_trade
 #
 
-def exec_trade(p, name, order, quantity, price, tdate):
+
+def exec_trade(
+    p: Portfolio,
+    name: str,
+    order: str,
+    quantity: int | float,
+    price: str | float,
+    tdate: str | datetime,
+) -> float:
     r"""Execute a trade for a portfolio.
 
     Parameters
@@ -977,13 +1009,14 @@ def exec_trade(p, name, order, quantity, price, tdate):
         pos = p.positions[name]
         newpos = False
     else:
-        pos = Position(p, name, tdate)
+        tdate_dt = datetime.fromisoformat(tdate) if isinstance(tdate, str) else tdate
+        pos = Position(p, name, tdate_dt)
         newpos = True
     # check the dynamic position sizing variable
     if not p.posby:
         tsize = quantity
     else:
-        if order == Orders.le or order == Orders.se:
+        if order in (Orders.le, Orders.se):
             pf = Frame.frames[frame_name(name, p.space)].df
             cv = float(pf.loc[tdate][p.posby])
             tsize = math.trunc((p.value * p.fixedfrac) / cv)
@@ -992,13 +1025,14 @@ def exec_trade(p, name, order, quantity, price, tdate):
         else:
             tsize = -pos.quantity
     # instantiate and allocate the trade
-    newtrade = Trade(name, order, tsize, price, tdate)
+    tdate_dt = datetime.fromisoformat(tdate) if isinstance(tdate, str) else tdate
+    newtrade = Trade(name, order, tsize, price, tdate_dt)
     allocation = allocate_trade(p, pos, newtrade)
     if allocation != 0:
         # create a new position if necessary
         if newpos:
             p = add_position(p, name, pos)
-            p.npos += 1        
+            p.npos += 1
         # update the portfolio
         p = update_portfolio(p, pos, newtrade)
         # if net position is zero, then close the position
@@ -1016,8 +1050,10 @@ def exec_trade(p, name, order, quantity, price, tdate):
 # Function gen_portfolio
 #
 
-def gen_portfolio(model, system, group, tframe,
-                  startcap=100000, posby='close'):
+
+def gen_portfolio(
+    model: Any, system: str, group: Any, tframe: DataFrame, startcap: float = 100000, posby: str = "close"
+) -> Portfolio:
     r"""Create a portfolio from a trades frame.
 
     Parameters
@@ -1049,7 +1085,7 @@ def gen_portfolio(model, system, group, tframe,
     -----
 
     This function also generates the files required for analysis
-    by the *pyfolio* package:
+    by the *pyfolio-reloaded* package:
 
     * Returns File
     * Positions File
@@ -1061,9 +1097,9 @@ def gen_portfolio(model, system, group, tframe,
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    separator = model.specs["separator"]
 
     # Create the portfolio.
 
@@ -1072,28 +1108,22 @@ def gen_portfolio(model, system, group, tframe,
     gmembers = group.members
     ff = 1.0 / len(gmembers)
 
-    p = Portfolio(gname,
-                  system,
-                  gspace,
-                  startcap = startcap,
-                  posby = posby,
-                  restricted = False,
-                  fixedfrac = ff)
+    p = Portfolio(gname, system, gspace, startcap=startcap, posby=posby, restricted=False, fixedfrac=ff)
     if not p:
         raise MemoryError("Could not allocate Portfolio")
 
-    # Build pyfolio data from the trades frame.
+    # Build pyfolio-reloaded data from the trades frame.
 
     start = tframe.index[0]
     end = tframe.index[-1]
-    trange = np.unique(tframe.index.map(lambda x: x.date().strftime('%Y-%m-%d'))).tolist()
-    drange = date_range(start, end).map(lambda x: x.date().strftime('%Y-%m-%d'))
+    trange = np.unique(tframe.index.map(lambda x: x.date().strftime("%Y-%m-%d"))).tolist()
+    drange = date_range(start, end).map(lambda x: x.date().strftime("%Y-%m-%d"))
 
     # Initialize return, position, and transaction data.
 
     rs = []
     pcols = list(gmembers)
-    pcols.extend(['cash'])
+    pcols.extend(["cash"])
     pf = DataFrame(index=drange, columns=pcols).fillna(0.0)
     ts = []
 
@@ -1107,57 +1137,51 @@ def gen_portfolio(model, system, group, tframe,
             for t in trades.iterrows():
                 tdate = t[0]
                 row = t[1]
-                tsize = exec_trade(p, row['name'], row['order'], row['quantity'], row['price'], tdate)
+                tsize = exec_trade(p, row["name"], row["order"], row["quantity"], row["price"], tdate)
                 if tsize != 0:
-                    ts.append((d, [tsize, row['price'], row['name']]))
+                    ts.append((d, [tsize, row["price"], row["name"]]))
                 else:
-                    logger.info("Trade could not be executed for %s", row['name'])
+                    logger.info("Trade could not be executed for %s", row["name"])
         # iterate through current positions
         positions = p.positions
         pfrow = pf.loc[d]
         for key in positions:
             pos = positions[key]
-            if pos.quantity > 0:
-                value = pos.value
-            else:
-                value = -pos.value
+            value = pos.value if pos.quantity > 0 else -pos.value
             pfrow[pos.name] = value
-        pfrow['cash'] = p.cash
+        pfrow["cash"] = p.cash
         # update the portfolio returns
         p = valuate_portfolio(p, d)
         rs.append((d, [p.netreturn]))
 
     # Create systems directory path
 
-    system_dir = SSEP.join([directory, 'systems'])
+    system_dir = SSEP.join([directory, "systems"])
 
     # Create and record the returns frame for this system.
 
     logger.info("Recording Returns Frame")
-    rspace = Space(system, 'returns', gspace.fractal)
-    rf = DataFrame.from_dict(dict(rs), orient='index', columns=['return'])
+    rspace = Space(system, "returns", gspace.fractal)
+    rf = DataFrame.from_dict(dict(rs), orient="index", columns=["return"])
     rfname = frame_name(gname, rspace)
-    write_frame(rf, system_dir, rfname, extension, separator,
-                index=True, index_label='date')
+    write_frame(rf, system_dir, rfname, extension, separator, index=True, index_label="date")
     del rspace
 
     # Record the positions frame for this system.
 
     logger.info("Recording Positions Frame")
-    pspace = Space(system, 'positions', gspace.fractal)
+    pspace = Space(system, "positions", gspace.fractal)
     pfname = frame_name(gname, pspace)
-    write_frame(pf, system_dir, pfname, extension, separator,
-                index=True, index_label='date')
+    write_frame(pf, system_dir, pfname, extension, separator, index=True, index_label="date")
     del pspace
 
     # Create and record the transactions frame for this system.
 
     logger.info("Recording Transactions Frame")
-    tspace = Space(system, 'transactions', gspace.fractal)
-    tf = DataFrame.from_dict(dict(ts), orient='index', columns=['amount', 'price', 'symbol'])
+    tspace = Space(system, "transactions", gspace.fractal)
+    tf = DataFrame.from_dict(dict(ts), orient="index", columns=["amount", "price", "symbol"])
     tfname = frame_name(gname, tspace)
-    write_frame(tf, system_dir, tfname, extension, separator,
-                index=True, index_label='date')
+    write_frame(tf, system_dir, tfname, extension, separator, index=True, index_label="date")
     del tspace
 
     # Return the portfolio.

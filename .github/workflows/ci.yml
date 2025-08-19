@@ -1,0 +1,307 @@
+name: CI - Quality Gates
+
+on:
+  push:
+    branches: [ main, master, develop, feature/* ]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - 'docs/**'
+      - 'outdated/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'MYPY_TYPE_ERRORS_HANDOVER.md'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - 'docs/**'
+      - 'outdated/**'
+      - '.gitignore'
+      - 'LICENSE'
+  workflow_dispatch:
+
+# Cancel in-progress workflows when a new one starts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # LINTING AND CODE QUALITY
+  linting:
+    name: Linting (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev --group test
+        echo "Installed packages:"
+        uv tree
+
+    - name: Check for critical errors (undefined names)
+      run: |
+        echo "Checking for undefined names (F821)..."
+        UNDEFINED_COUNT=$(uv run ruff check alphapy/ --select F821 --quiet && echo '0' || uv run ruff check alphapy/ --select F821 | grep -c '^' || echo '0')
+        if [ "$UNDEFINED_COUNT" -gt 0 ]; then
+          echo "CRITICAL: $UNDEFINED_COUNT undefined names found!"
+          uv run ruff check alphapy/ --select F821
+          exit 1
+        fi
+        echo "No undefined names found"
+
+    - name: Check for import errors
+      run: |
+        echo "Checking for import errors (F403, F405)..."
+        IMPORT_ERRORS=$(uv run ruff check alphapy/ --select F403,F405 --quiet && echo '0' || uv run ruff check alphapy/ --select F403,F405 | grep -c '^' || echo '0')
+        if [ "$IMPORT_ERRORS" -gt 0 ]; then
+          echo "CRITICAL: $IMPORT_ERRORS import errors found!"
+          uv run ruff check alphapy/ --select F403,F405
+          exit 1
+        fi
+        echo "No import errors found"
+
+    - name: Check code formatting
+      run: |
+        echo "Checking code formatting..."
+        if ! uv run ruff format --check alphapy/; then
+          echo "Code formatting issues found! Run: uv run ruff format alphapy/"
+          exit 1
+        fi
+        echo "Code is properly formatted"
+
+    - name: Full linting report with threshold
+      run: |
+        echo "Running full linting report..."
+        ERROR_COUNT=$(uv run ruff check alphapy/ --exit-zero | grep -c "^" || echo "0")
+        uv run ruff check alphapy/ --statistics
+        
+        # Set maximum allowed errors (current threshold from requirements)
+        MAX_ERRORS=130
+        
+        if [ "$ERROR_COUNT" -gt "$MAX_ERRORS" ]; then
+          echo "Too many linting errors: $ERROR_COUNT > $MAX_ERRORS"
+          echo "The codebase quality is below acceptable standards!"
+          exit 1
+        else
+          echo "Current errors: $ERROR_COUNT (max allowed: $MAX_ERRORS)"
+        fi
+
+  # TYPE CHECKING
+  type-checking:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    needs: linting
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev --group test
+
+    - name: Run MyPy type checking
+      run: |
+        echo "Running type checking..."
+        if uv run mypy alphapy/; then
+          echo "Type checking passed"
+        else
+          echo "Type checking failed"
+          exit 1
+        fi
+
+  # COMPILATION AND IMPORT TESTS
+  compilation:
+    name: Compilation & Import Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: linting
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev --group test --group ml-extras
+
+    - name: Test compilation
+      run: |
+        echo "Compiling all Python files..."
+        for file in alphapy/*.py; do
+          echo "Compiling: $file"
+          if ! uv run python -m py_compile "$file"; then
+            echo "CRITICAL: Failed to compile $file"
+            exit 1
+          fi
+        done
+        echo "All files compile successfully"
+
+    - name: Test module imports
+      run: |
+        echo "Testing module imports..."
+        for module in alphapy/*.py; do
+          MODULE_NAME=$(basename "$module" .py)
+          if [ "$MODULE_NAME" != "__main__" ]; then
+            echo "Importing: alphapy.$MODULE_NAME"
+            if ! uv run python -c "import alphapy.$MODULE_NAME"; then
+              echo "CRITICAL: Failed to import alphapy.$MODULE_NAME"
+              exit 1
+            fi
+          fi
+        done
+        echo "All modules import successfully"
+
+  # TESTING
+  testing:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: [linting, compilation]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev --group test --group ml-extras
+
+    - name: Run tests with coverage
+      run: |
+        echo "Running tests with coverage..."
+        uv run pytest tests/ \
+          -xvs \
+          --strict-markers \
+          --strict-config \
+          --tb=short \
+          --cov=alphapy \
+          --cov-report=term-missing \
+          --cov-report=xml:coverage.xml \
+          --cov-fail-under=25 \
+          --junitxml=test-results.xml
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          test-results.xml
+          coverage.xml
+        retention-days: 30
+
+    - name: Test ML libraries (macOS only)
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "Testing ML library compatibility..."
+        uv run python -c "
+        try:
+            import xgboost
+            print(f'XGBoost {xgboost.__version__} - OK')
+        except ImportError as e:
+            print(f'XGBoost: {e}')
+
+        try:
+            import lightgbm
+            print(f'LightGBM {lightgbm.__version__} - OK')
+        except ImportError as e:
+            print(f'LightGBM: {e}')
+
+        try:
+            import catboost
+            print(f'CatBoost {catboost.__version__} - OK')
+        except ImportError as e:
+            print(f'CatBoost: {e}')
+        "
+
+  # QUALITY GATE - All jobs must pass
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [linting, type-checking, compilation, testing]
+    if: always()
+
+    steps:
+    - name: Check all jobs passed
+      run: |
+        echo "Quality Gate Check"
+        
+        if [ "${{ needs.linting.result }}" != "success" ]; then
+          echo "Linting failed - code quality below standards"
+          exit 1
+        fi
+        
+        if [ "${{ needs.type-checking.result }}" != "success" ]; then
+          echo "Type checking failed - type safety issues present"
+          exit 1
+        fi
+        
+        if [ "${{ needs.compilation.result }}" != "success" ]; then
+          echo "Compilation failed - critical errors present"
+          exit 1
+        fi
+        
+        if [ "${{ needs.testing.result }}" != "success" ]; then
+          echo "Tests failed - functionality broken"
+          exit 1
+        fi
+        
+        echo "All quality gates passed!"
+        echo "The codebase meets quality standards for AlphaPy"

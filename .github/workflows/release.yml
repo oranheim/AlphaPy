@@ -1,0 +1,203 @@
+name: Release to GitHub Packages
+
+on:
+  release:
+    types: [published]
+
+# Ensure only one release runs at a time
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # VALIDATE RELEASE
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev --group test
+
+    - name: Validate release readiness
+      id: check
+      run: |
+        echo "Validating release readiness..."
+        
+        # Check if this is a published release
+        if [ "${{ github.event.action }}" != "published" ]; then
+          echo "Not a published release - skipping"
+          echo "should_release=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Quick syntax validation
+        echo "Running quick syntax validation..."
+        uv run python -m py_compile alphapy/*.py
+        
+        # Test basic import
+        echo "Testing basic import..."
+        uv run python -c "import alphapy; print('Package imports successfully')"
+        
+        echo "should_release=true" >> $GITHUB_OUTPUT
+
+    - name: Extract version from release tag
+      id: version
+      run: |
+        # Extract version from the release tag
+        VERSION="${{ github.event.release.tag_name }}"
+        # Remove 'v' prefix if present
+        VERSION="${VERSION#v}"
+        echo "Release version: $VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  # BUILD PACKAGE
+  build-package:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: validate-release
+    if: needs.validate-release.outputs.should_release == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Install build dependencies
+      run: |
+        uv sync --group dev
+        uv add --group dev build
+
+    - name: Build package
+      run: |
+        echo "Building package..."
+        uv run python -m build
+        
+        echo "Built packages:"
+        ls -la dist/
+
+    - name: Test package installation
+      run: |
+        echo "Testing package installation..."
+        
+        # Create a clean environment to test installation
+        python -m venv test_env
+        source test_env/bin/activate
+        
+        # Install the built package
+        pip install dist/*.whl
+        
+        # Test basic import and version
+        python -c "
+        import alphapy
+        print(f'AlphaPy {alphapy.__version__} installed successfully')
+        
+        # Test key modules
+        from alphapy import data, model, features
+        print('Key modules import successfully')
+        "
+        
+        deactivate
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-${{ needs.validate-release.outputs.version }}
+        path: dist/
+        retention-days: 90
+
+  # PUBLISH TO GITHUB PACKAGES
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-package]
+    if: needs.validate-release.outputs.should_release == 'true'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Download package artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-${{ needs.validate-release.outputs.version }}
+        path: dist/
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install publishing tools
+      run: |
+        pip install twine
+
+    - name: Configure package repository
+      run: |
+        echo "Configuring package repository for GitHub Packages..."
+        echo "Repository: ${{ github.repository }}"
+        echo "Package registry: https://pypi.pkg.github.com/${{ github.repository_owner }}/"
+
+    - name: Publish to GitHub Packages
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "Publishing to GitHub Packages..."
+        
+        # GitHub Packages for Python uses a different registry URL
+        twine upload \
+          --repository-url https://pypi.pkg.github.com/${{ github.repository_owner }}/ \
+          --username __token__ \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          dist/*
+
+    - name: Create release summary
+      run: |
+        echo "Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "===============" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release**: ${{ github.event.release.html_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: Successfully published to GitHub Packages" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Installation" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "pip install alphapy==${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify success
+      run: |
+        echo "Release pipeline completed successfully!"
+        echo "AlphaPy v${{ needs.validate-release.outputs.version }} published to GitHub Packages"
+        echo "Release URL: ${{ github.event.release.html_url }}"

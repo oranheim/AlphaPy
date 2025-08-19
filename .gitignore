@@ -1,26 +1,80 @@
-.DS_Store
-
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 
-*.iml
-
-*.egg-info*
-
-*build*
-
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 *.whl
-
 *.gz
 
-.idea/*
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+coverage.xml
+*.cover
 
-.eggs/*
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
 
-alphapy/examples/Trading System/.ipynb_checkpoints/A Trading System-checkpoint.ipynb
+# IDEs
+.idea/
+.vscode/
+*.code-workspace
+*.iml
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# AlphaPy specific
+alphapy.log
+*.log
 *.pkl
 *.png
-*.code-workspace
-alphapy/.vscode/launch.json
-alphapy/.vscode/settings.json
-*.log
-docs/.vscode/settings.json
+config/
+data/
+input/
+model/
+output/
+plots/
+
+# Documentation build
+docs/_build/
+docs/.vscode/
+
+# Ruff cache
+.ruff_cache/
+
+# mypy
+.mypy_cache/
+
+# uv lock file (regenerated automatically)
+uv.lock

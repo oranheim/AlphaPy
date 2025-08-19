@@ -26,11 +26,9 @@
 # Imports
 #
 
-from alphapy.globals import USEP
-from alphapy.space import Space
-
 import logging
 
+from alphapy.space import Space
 
 #
 # Initialize logger
@@ -43,7 +41,8 @@ logger = logging.getLogger(__name__)
 # Class Group
 #
 
-class Group(object):
+
+class Group:
     """Create a new Group that contains common members. All
     defined groups are stored in ``Group.groups``. Group
     names must be unique.
@@ -68,42 +67,39 @@ class Group(object):
 
     Examples
     --------
-    
-    >>> Group('tech')
+
+    >>> Group("tech")
 
     """
 
     # class variable to track all groups
 
-    groups = {}
-    
+    groups: dict[str, "Group"] = {}
+
     # function __init__
-    
-    def __init__(self,
-                 name,
-                 space = Space(),
-                 dynamic = True,
-                 members = set()):
+
+    def __init__(self, name, space=Space(), dynamic=True, members=None):
         # code
-        if not name in Group.groups:
+        if members is None:
+            members = set()
+        if name not in Group.groups:
             self.name = name
             self.space = space
-            self.dynamic =  dynamic
+            self.dynamic = dynamic
             self.members = members
             # add group to groups list
             Group.groups[name] = self
         else:
             logger.info("Group already %s exists", name)
-        
+
     # function __str__
 
     def __str__(self):
         return self.name
-            
+
     # function add
-            
-    def add(self,
-            newlist):
+
+    def add(self, newlist):
         r"""Add new members to the group.
 
         Parameters
@@ -121,7 +117,7 @@ class Group(object):
         New members cannot be added to a fixed or non-dynamic group.
 
         """
-        if all([type(item) is str for item in newlist]):
+        if all(type(item) is str for item in newlist):
             newset = set(newlist)
             if self.dynamic:
                 if newset.issubset(self.members):
@@ -134,9 +130,9 @@ class Group(object):
                 logger.info("Cannot add members to a non-dynamic group")
         else:
             logger.info("All new members must be of type str")
-            
+
     # function member
-            
+
     def member(self, item):
         r"""Find a member in the group.
 
@@ -152,9 +148,9 @@ class Group(object):
 
         """
         return item in self.members
-        
+
     # function remove
-    
+
     def remove(self, remlist):
         r"""Read in data from the given directory in a given format.
 
@@ -174,8 +170,8 @@ class Group(object):
 
         """
         if self.dynamic:
-            nonefound = not any([self.member(item) for item in remlist])
-            if nonefound == True:
+            nonefound = not any(self.member(item) for item in remlist)
+            if nonefound:
                 logger.info("Members to remove not found")
             else:
                 removed = []

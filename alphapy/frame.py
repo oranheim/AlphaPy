@@ -26,12 +26,11 @@
 # Imports
 #
 
-from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import TAG_ID
-
 import logging
+
 import pandas as pd
 
+from alphapy.globals import PSEP, SSEP, TAG_ID, USEP
 
 #
 # Initialize logger
@@ -43,6 +42,7 @@ logger = logging.getLogger(__name__)
 #
 # Function frame_name
 #
+
 
 def frame_name(name, space):
     r"""Get the frame name for the given name and space.
@@ -62,7 +62,7 @@ def frame_name(name, space):
     Examples
     --------
 
-    >>> fname = frame_name('tech', Space('stock', 'prices', '1d'))
+    >>> fname = frame_name("tech", Space("stock", "prices", "1d"))
     # 'tech_stock_prices_1d'
 
     """
@@ -73,7 +73,8 @@ def frame_name(name, space):
 # Class Frame
 #
 
-class Frame(object):
+
+class Frame:
     """Create a new Frame that points to a dataframe in memory. All
     frames are stored in ``Frame.frames``. Names must be unique.
 
@@ -93,35 +94,32 @@ class Frame(object):
 
     Examples
     --------
-    
-    >>> Frame('tech', Space('stock', 'prices', '5m'), df)
+
+    >>> Frame("tech", Space("stock", "prices", "5m"), df)
 
     """
 
     # class variable to track all frames
 
-    frames = {}
+    frames: dict[str, "Frame"] = {}
 
     # __init__
 
-    def __init__(self,
-                 name,
-                 space,
-                 df):
+    def __init__(self, name, space, df):
         # code
-        if df.__class__.__name__ == 'DataFrame':
+        if df.__class__.__name__ == "DataFrame":
             fn = frame_name(name, space)
-            if not fn in Frame.frames:
+            if fn not in Frame.frames:
                 self.name = name
                 self.space = space
                 self.df = df
                 # add frame to frames list
                 Frame.frames[fn] = self
             else:
-                logger.info("Frame ", fn, " already exists")
+                logger.info(f"Frame {fn} already exists")
         else:
             logger.info("df must be of type Pandas DataFrame")
-        
+
     # __str__
 
     def __str__(self):
@@ -132,8 +130,8 @@ class Frame(object):
 # Function read_frame
 #
 
-def read_frame(directory, filename, extension, separator,
-               index_col=None, squeeze=False):
+
+def read_frame(directory, filename, extension, separator, index_col=None, squeeze=False):
     r"""Read a delimiter-separated file into a data frame.
 
     Parameters
@@ -162,11 +160,10 @@ def read_frame(directory, filename, extension, separator,
     file_all = SSEP.join([directory, file_only])
     logger.info("Loading data from %s", file_all)
     try:
-        df = pd.read_csv(file_all, sep=separator, index_col=index_col,
-                         squeeze=squeeze, low_memory=False)
-    except:
+        df = pd.read_csv(file_all, sep=separator, index_col=index_col, squeeze=squeeze, low_memory=False)
+    except (OSError, FileNotFoundError, pd.errors.ParserError) as e:
         df = pd.DataFrame()
-        logger.info("Could not find or access %s", file_all)
+        logger.info("Could not find or access %s: %s", file_all, e)
     return df
 
 
@@ -174,8 +171,8 @@ def read_frame(directory, filename, extension, separator,
 # Function write_frame
 #
 
-def write_frame(df, directory, filename, extension, separator,
-                index=False, index_label=None, columns=None):
+
+def write_frame(df, directory, filename, extension, separator, index=False, index_label=None, columns=None):
     r"""Write a dataframe into a delimiter-separated file.
 
     Parameters
@@ -206,17 +203,17 @@ def write_frame(df, directory, filename, extension, separator,
     file_all = SSEP.join([directory, file_only])
     logger.info("Writing data frame to %s", file_all)
     try:
-        df.to_csv(file_all, sep=separator, index=index,
-                  index_label=index_label, columns=columns)
-    except:
-        logger.info("Could not write data frame to %s", file_all)
+        df.to_csv(file_all, sep=separator, index=index, index_label=index_label, columns=columns)
+    except (OSError, PermissionError) as e:
+        logger.info("Could not write data frame to %s: %s", file_all, e)
 
 
 #
 # Function load_frames
 #
 
-def load_frames(group, directory, extension, separator, splits=False):        
+
+def load_frames(group, directory, extension, separator, splits=False):
     r"""Read a group of dataframes into memory.
 
     Parameters
@@ -279,7 +276,8 @@ def load_frames(group, directory, extension, separator, splits=False):
 # Function dump_frames
 #
 
-def dump_frames(group, directory, extension, separator):        
+
+def dump_frames(group, directory, extension, separator):
     r"""Save a group of data frames to disk.
 
     Parameters
@@ -315,7 +313,8 @@ def dump_frames(group, directory, extension, separator):
 # Function sequence_frame
 #
 
-def sequence_frame(df, target, forecast_period=1, leaders=[], lag_period=1):
+
+def sequence_frame(df, target, forecast_period=1, leaders=None, lag_period=1):
     r"""Create sequences of lagging and leading values.
 
     Parameters
@@ -339,23 +338,25 @@ def sequence_frame(df, target, forecast_period=1, leaders=[], lag_period=1):
     """
 
     # Set Leaders and Laggards
+    if leaders is None:
+        leaders = []
     le_cols = sorted(leaders)
     le_len = len(le_cols)
-    df_cols = sorted(list(set(df.columns) - set(le_cols)))
+    df_cols = sorted(set(df.columns) - set(le_cols))
     df_len = len(df_cols)
 
     # Add lagged columns
-    new_cols, new_names = list(), list()
+    new_cols, new_names = [], []
     for i in range(lag_period, 0, -1):
         new_cols.append(df[df_cols].shift(i))
-        new_names += ['%s[%d]' % (df_cols[j], i) for j in range(df_len)]
+        new_names += ["%s[%d]" % (df_cols[j], i) for j in range(df_len)]
 
     # Preserve leader columns
     new_cols.append(df[le_cols])
     new_names += [le_cols[j] for j in range(le_len)]
 
     # Forecast Target(s)
-    new_cols.append(pd.DataFrame(df[target].shift(1-forecast_period)))
+    new_cols.append(pd.DataFrame(df[target].shift(1 - forecast_period)))
     new_names.append(target)
 
     # Collect all columns into new frame

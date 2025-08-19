@@ -26,20 +26,16 @@
 # Imports
 #
 
-from alphapy.globals import PSEP, SSEP, USEP
-
 import argparse
-from datetime import datetime, timedelta
 import glob
-import inspect
-from itertools import groupby
 import logging
-import numpy as np
 import os
-from os import listdir
-from os.path import isfile, join
 import re
+from datetime import datetime, timedelta
 
+import numpy as np
+
+from alphapy.globals import PSEP, SSEP
 
 #
 # Initialize logger
@@ -51,6 +47,7 @@ logger = logging.getLogger(__name__)
 #
 # Function get_datestamp
 #
+
 
 def get_datestamp():
     r"""Returns today's datestamp.
@@ -70,6 +67,7 @@ def get_datestamp():
 #
 # Function most_recent_file
 #
+
 
 def most_recent_file(directory, file_spec):
     r"""Find the most recent file in a directory.
@@ -98,6 +96,7 @@ def most_recent_file(directory, file_spec):
 #
 # Function np_store_data
 #
+
 
 def np_store_data(data, dir_name, file_name, extension, separator):
     r"""Store NumPy data in a file.
@@ -130,6 +129,7 @@ def np_store_data(data, dir_name, file_name, extension, separator):
 # Function remove_list_items
 #
 
+
 def remove_list_items(elements, alist):
     r"""Remove one or more items from the given list.
 
@@ -148,7 +148,7 @@ def remove_list_items(elements, alist):
     Examples
     --------
 
-    >>> test_list = ['a', 'b', 'c', test_func]
+    >>> test_list = ["a", "b", "c", test_func]
     >>> remove_list_items([test_func], test_list)  # ['a', 'b', 'c']
 
     """
@@ -159,6 +159,7 @@ def remove_list_items(elements, alist):
 #
 # Function subtract_days
 #
+
 
 def subtract_days(date_string, ndays):
     r"""Subtract a number of days from a given date.
@@ -178,7 +179,7 @@ def subtract_days(date_string, ndays):
     Examples
     --------
 
-    >>> subtract_days('2017-11-10', 31)   # '2017-10-10'
+    >>> subtract_days("2017-11-10", 31)  # '2017-10-10'
 
     """
     new_date_string = None
@@ -193,6 +194,7 @@ def subtract_days(date_string, ndays):
 #
 # Function valid_date
 #
+
 
 def valid_date(date_string):
     r"""Determine whether or not the given string is a valid date.
@@ -215,21 +217,22 @@ def valid_date(date_string):
     Examples
     --------
 
-    >>> valid_date('2016-7-1')   # datetime.datetime(2016, 7, 1, 0, 0)
-    >>> valid_date('345')        # ValueError: Not a valid date
+    >>> valid_date("2016-7-1")  # datetime.datetime(2016, 7, 1, 0, 0)
+    >>> valid_date("345")  # ValueError: Not a valid date
 
     """
     try:
-        date_time = datetime.strptime(date_string, "%Y-%m-%d")
+        datetime.strptime(date_string, "%Y-%m-%d")
         return date_string
-    except:
-        message = "Not a valid date: '{0}'.".format(date_string)
-        raise argparse.ArgumentTypeError(message)
+    except Exception as e:
+        message = f"Not a valid date: '{date_string}'."
+        raise argparse.ArgumentTypeError(message) from e
 
 
 #
 # Function valid_name
 #
+
 
 def valid_name(name):
     r"""Determine whether or not the given string is a valid
@@ -248,8 +251,8 @@ def valid_name(name):
     Examples
     --------
 
-    >>> valid_name('alpha')   # True
-    >>> valid_name('!alpha')  # False
+    >>> valid_name("alpha")  # True
+    >>> valid_name("!alpha")  # False
 
     """
     identifier = re.compile(r"^[^\d\W]\w*\Z", re.UNICODE)

@@ -55,38 +55,30 @@ print(__doc__)
 # Imports
 #
 
-from alphapy.estimators import get_estimators
-from alphapy.globals import BSEP, PSEP, SSEP, USEP
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import Q1, Q3
-from alphapy.utilities import remove_list_items
-
-from bokeh.plotting import figure, show, output_file
-import itertools
 import logging
 import math
+
 import matplotlib
-matplotlib.use('PS')
+from bokeh.plotting import figure, output_file, show
+
+from alphapy.estimators import get_estimators
+from alphapy.globals import BSEP, Q1, Q3, SSEP, USEP, ModelType, Partition, datasets
+
+matplotlib.use("PS")
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pandas as pd
-from scipy import interp
 import seaborn as sns
 from sklearn.calibration import calibration_curve
-from sklearn.inspection import partial_dependence
-from sklearn.inspection import plot_partial_dependence
-from sklearn.metrics import auc
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import roc_curve
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import learning_curve
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import validation_curve
-from sklearn.utils.multiclass import unique_labels
 
+try:
+    from sklearn.inspection import plot_partial_dependence
+except ImportError:
+    # In newer sklearn versions, use PartialDependenceDisplay
+    from sklearn.inspection import PartialDependenceDisplay as plot_partial_dependence
+from sklearn.metrics import auc, confusion_matrix, roc_curve
+from sklearn.model_selection import StratifiedKFold, learning_curve, validation_curve
+from sklearn.utils.multiclass import unique_labels
 
 #
 # Initialize logger
@@ -98,6 +90,7 @@ logger = logging.getLogger(__name__)
 #
 # Function get_partition_data
 #
+
 
 def get_partition_data(model, partition):
     r"""Get the X, y pair for a given model and partition
@@ -130,7 +123,7 @@ def get_partition_data(model, partition):
         X = model.X_test
         y = model.y_test
     else:
-        raise TypeError('Partition must be train or test')
+        raise TypeError("Partition must be train or test")
 
     return X, y
 
@@ -138,6 +131,7 @@ def get_partition_data(model, partition):
 #
 # Function generate_plots
 #
+
 
 def generate_plots(model, partition):
     r"""Generate plots while running the pipeline.
@@ -155,16 +149,16 @@ def generate_plots(model, partition):
 
     """
 
-    logger.info('='*80)
+    logger.info("=" * 80)
     logger.info("Generating Plots for partition: %s", datasets[partition])
 
     # Extract model parameters
 
-    calibration_plot = model.specs['calibration_plot']
-    confusion_matrix = model.specs['confusion_matrix']
-    importances = model.specs['importances']
-    learning_curve = model.specs['learning_curve']
-    roc_curve = model.specs['roc_curve']
+    calibration_plot = model.specs["calibration_plot"]
+    confusion_matrix = model.specs["confusion_matrix"]
+    importances = model.specs["importances"]
+    learning_curve = model.specs["learning_curve"]
+    roc_curve = model.specs["roc_curve"]
 
     # Generate plots
 
@@ -185,6 +179,7 @@ def generate_plots(model, partition):
 # Function get_plot_directory
 #
 
+
 def get_plot_directory(model):
     r"""Get the plot output directory of a model.
 
@@ -199,14 +194,15 @@ def get_plot_directory(model):
         The output directory to write the plot.
 
     """
-    directory = model.specs['directory']
-    plot_directory = SSEP.join([directory, 'plots'])
+    directory = model.specs["directory"]
+    plot_directory = SSEP.join([directory, "plots"])
     return plot_directory
 
 
 #
 # Function write_plot
 #
+
 
 def write_plot(vizlib, plot, plot_type, tag, directory=None):
     r"""Save the plot to a file, or display it interactively.
@@ -249,35 +245,33 @@ def write_plot(vizlib, plot, plot_type, tag, directory=None):
 
     # Validate visualization library
 
-    if (vizlib == 'matplotlib' or
-       vizlib == 'seaborn' or
-       vizlib == 'bokeh'):
+    if vizlib == "matplotlib" or vizlib == "seaborn" or vizlib == "bokeh":
         # supported library
         pass
-    elif vizlib == 'plotly':
-        raise ValueError("Unsupported data visualization library: %s" % vizlib)
+    elif vizlib == "plotly":
+        raise ValueError(f"Unsupported data visualization library: {vizlib}")
     else:
-        raise ValueError("Unrecognized data visualization library: %s" % vizlib)
+        raise ValueError(f"Unrecognized data visualization library: {vizlib}")
 
     # Save or display the plot
 
     if directory:
-        if vizlib == 'bokeh':
-            file_only = ''.join([plot_type, USEP, tag, '.html'])
+        if vizlib == "bokeh":
+            file_only = "".join([plot_type, USEP, tag, ".html"])
         else:
-            file_only = ''.join([plot_type, USEP, tag, '.png'])
+            file_only = "".join([plot_type, USEP, tag, ".png"])
         file_all = SSEP.join([directory, file_only])
         logger.info("Writing plot to %s", file_all)
-        if vizlib == 'matplotlib':
+        if vizlib == "matplotlib":
             plot.tight_layout()
             plot.savefig(file_all)
-        elif vizlib == 'seaborn':
+        elif vizlib == "seaborn":
             plot.savefig(file_all)
         else:
             output_file(file_all, title=tag)
             show(plot)
     else:
-        if vizlib == 'bokeh':
+        if vizlib == "bokeh":
             show(plot)
         else:
             plot.plot()
@@ -286,6 +280,7 @@ def write_plot(vizlib, plot, plot_type, tag, directory=None):
 #
 # Function plot_calibration
 #
+
 
 def plot_calibration(model, partition):
     r"""Display scikit-learn calibration plots.
@@ -316,15 +311,15 @@ def plot_calibration(model, partition):
 
     # For classification only
 
-    if model.specs['model_type'] != ModelType.classification:
-        logger.info('Calibration plot is for classification only')
+    if model.specs["model_type"] != ModelType.classification:
+        logger.info("Calibration plot is for classification only")
         return None
 
     # Get X, Y for correct partition
 
     X, y = get_partition_data(model, partition)
 
-    plt.style.use('classic')
+    plt.style.use("classic")
     plt.figure(figsize=(10, 10))
     ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
     ax2 = plt.subplot2grid((3, 1), (2, 0))
@@ -337,19 +332,15 @@ def plot_calibration(model, partition):
             prob_pos = model.probas[(algo, partition)]
         else:  # use decision function
             prob_pos = clf.decision_function(X)
-            prob_pos = \
-                (prob_pos - prob_pos.min()) / (prob_pos.max() - prob_pos.min())
-        fraction_of_positives, mean_predicted_value = \
-            calibration_curve(y, prob_pos, n_bins=10)
-        ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
-                 label="%s" % (algo, ))
-        ax2.hist(prob_pos, range=(0, 1), bins=10, label=algo,
-                 histtype="step", lw=2)
+            prob_pos = (prob_pos - prob_pos.min()) / (prob_pos.max() - prob_pos.min())
+        fraction_of_positives, mean_predicted_value = calibration_curve(y, prob_pos, n_bins=10)
+        ax1.plot(mean_predicted_value, fraction_of_positives, "s-", label=f"{algo}")
+        ax2.hist(prob_pos, range=(0, 1), bins=10, label=algo, histtype="step", lw=2)
 
     ax1.set_ylabel("Fraction of Positives")
     ax1.set_ylim([-0.05, 1.05])
     ax1.legend(loc="lower right")
-    ax1.set_title('Calibration Plots [Reliability Curve]')
+    ax1.set_title("Calibration Plots [Reliability Curve]")
 
     ax2.set_xlabel("Mean Predicted Value")
     ax2.set_ylabel("Count")
@@ -357,12 +348,13 @@ def plot_calibration(model, partition):
 
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
-    write_plot('matplotlib', plt, 'calibration', pstring, plot_dir)
+    write_plot("matplotlib", plt, "calibration", pstring, plot_dir)
 
 
 #
 # Function plot_importances
 #
+
 
 def plot_importance(model, partition):
     r"""Display scikit-learn feature importances.
@@ -399,7 +391,7 @@ def plot_importance(model, partition):
             # get feature importances
             importances = np.array(model.importances[algo])
             imp_flag = True
-        except:
+        except (KeyError, TypeError, AttributeError):
             imp_flag = False
         if imp_flag:
             # sort the importances by index
@@ -411,9 +403,7 @@ def plot_importance(model, partition):
             logger.info("Feature Ranking:")
             n_min = min(n_top, n_features)
             for i in range(n_min):
-                logger.info("%d. %s (%f)" % (i + 1,
-                            feature_names[indices[i]],
-                            importances[indices[i]]))
+                logger.info("%d. %s (%f)" % (i + 1, feature_names[indices[i]], importances[indices[i]]))
             # plot the feature importances
             title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
             plt.figure()
@@ -421,17 +411,18 @@ def plot_importance(model, partition):
             plt.barh(range(n_min), importances[indices][:n_min][::-1])
             plt.yticks(range(n_min), feature_names[indices][:n_min][::-1])
             plt.ylim([-1, n_min])
-            plt.xlabel('Relative Importance')
+            plt.xlabel("Relative Importance")
             # save the plot
             tag = USEP.join([pstring, algo])
-            write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
+            write_plot("matplotlib", plt, "feature_importance", tag, plot_dir)
         else:
-            logger.info("No Feature Importances for %s" % algo)
+            logger.info(f"No Feature Importances for {algo}")
 
 
 #
 # Function plot_learning_curve
 #
+
 
 def plot_learning_curve(model, partition):
     r"""Generate learning curves for a given partition.
@@ -460,11 +451,11 @@ def plot_learning_curve(model, partition):
 
     # Extract model parameters.
 
-    cv_folds = model.specs['cv_folds']
-    n_jobs = model.specs['n_jobs']
-    seed = model.specs['seed']
-    shuffle = model.specs['shuffle']
-    verbosity = model.specs['verbosity']
+    cv_folds = model.specs["cv_folds"]
+    n_jobs = model.specs["n_jobs"]
+    seed = model.specs["seed"]
+    shuffle = model.specs["shuffle"]
+    verbosity = model.specs["verbosity"]
 
     # Get original estimators
 
@@ -489,7 +480,7 @@ def plot_learning_curve(model, partition):
         # plot learning curve
         title = BSEP.join([algo, "Learning Curve [", pstring, "]"])
         # set up plot
-        plt.style.use('classic')
+        plt.style.use("classic")
         plt.figure()
         plt.title(title)
         if ylim is not None:
@@ -497,34 +488,38 @@ def plot_learning_curve(model, partition):
         plt.xlabel("Training Examples")
         plt.ylabel("Score")
         # call learning curve function
-        train_sizes=np.linspace(0.1, 1.0, cv_folds)
-        train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y, train_sizes=train_sizes, cv=cv,
-                           n_jobs=n_jobs, verbose=verbosity)
+        train_sizes = np.linspace(0.1, 1.0, cv_folds)
+        train_sizes, train_scores, test_scores = learning_curve(
+            est, X, y, train_sizes=train_sizes, cv=cv, n_jobs=n_jobs, verbose=verbosity
+        )
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
         test_scores_std = np.std(test_scores, axis=1)
         plt.grid()
         # plot data
-        plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                         train_scores_mean + train_scores_std, alpha=0.1,
-                         color="r")
-        plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=0.1, color="g")
-        plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
-                 label="Training Score")
-        plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
-                 label="Cross-Validation Score")
+        plt.fill_between(
+            train_sizes,
+            train_scores_mean - train_scores_std,
+            train_scores_mean + train_scores_std,
+            alpha=0.1,
+            color="r",
+        )
+        plt.fill_between(
+            train_sizes, test_scores_mean - test_scores_std, test_scores_mean + test_scores_std, alpha=0.1, color="g"
+        )
+        plt.plot(train_sizes, train_scores_mean, "o-", color="r", label="Training Score")
+        plt.plot(train_sizes, test_scores_mean, "o-", color="g", label="Cross-Validation Score")
         plt.legend(loc="lower right")
         # save the plot
         tag = USEP.join([pstring, algo])
-        write_plot('matplotlib', plt, 'learning_curve', tag, plot_dir)
+        write_plot("matplotlib", plt, "learning_curve", tag, plot_dir)
 
 
 #
 # Function plot_roc_curve
 #
+
 
 def plot_roc_curve(model, partition):
     r"""Display ROC Curves with Cross-Validation.
@@ -552,8 +547,8 @@ def plot_roc_curve(model, partition):
 
     # For classification only
 
-    if model.specs['model_type'] != ModelType.classification:
-        logger.info('ROC Curves are for classification only')
+    if model.specs["model_type"] != ModelType.classification:
+        logger.info("ROC Curves are for classification only")
         return None
 
     # Get X, Y for correct partition.
@@ -562,7 +557,7 @@ def plot_roc_curve(model, partition):
 
     # Initialize plot parameters.
 
-    plt.style.use('classic')
+    plt.style.use("classic")
     plt.figure()
     lw = 2
 
@@ -574,26 +569,27 @@ def plot_roc_curve(model, partition):
         probas = model.probas[(algo, partition)]
         fpr, tpr, _ = roc_curve(y, probas)
         roc_auc = auc(fpr, tpr)
-        plt.plot(fpr, tpr, lw=lw, label='%s (area = %0.2f)' % (algo, roc_auc))
+        plt.plot(fpr, tpr, lw=lw, label=f"{algo} (area = {roc_auc:0.2f})")
 
     # draw the luck line
-    plt.plot([0, 1], [0, 1], linestyle='--', color='k', label='Luck')
+    plt.plot([0, 1], [0, 1], linestyle="--", color="k", label="Luck")
     # define plot characteristics
     plt.xlim([-0.05, 1.05])
     plt.ylim([-0.05, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
     title = BSEP.join([algo, "ROC Curve [", pstring, "]"])
     plt.title(title)
     plt.legend(loc="lower right")
     # save chart
     plot_dir = get_plot_directory(model)
-    write_plot('matplotlib', plt, 'roc_curve', pstring, plot_dir)
+    write_plot("matplotlib", plt, "roc_curve", pstring, plot_dir)
 
 
 #
 # Function plot_confusion_matrix
 #
+
 
 def plot_confusion_matrix(model, partition):
     r"""Draw the confusion matrix.
@@ -622,8 +618,8 @@ def plot_confusion_matrix(model, partition):
 
     # For classification only
 
-    if model.specs['model_type'] != ModelType.classification:
-        logger.info('Confusion Matrix is for classification only')
+    if model.specs["model_type"] != ModelType.classification:
+        logger.info("Confusion Matrix is for classification only")
         return None
 
     # Get X, Y for correct partition.
@@ -632,7 +628,7 @@ def plot_confusion_matrix(model, partition):
     # Plot Parameters
     np.set_printoptions(precision=2)
     cmap = plt.cm.Blues
-    fmt = '.2f'
+    fmt = ".2f"
 
     # Generate a Confusion Matrix for each algorithm
 
@@ -644,55 +640,56 @@ def plot_confusion_matrix(model, partition):
 
         # compute confusion matrix
         cm = confusion_matrix(y, y_pred)
-        logger.info('Confusion Matrix:')
-        logger.info('%s', cm)
+        logger.info("Confusion Matrix:")
+        logger.info("%s", cm)
 
         # normalize confusion matrix
-        cm_pct = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        cm_pct = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
 
         # initialize plot
         _, ax = plt.subplots()
 
         # set the title of the confusion matrix
-        title = algo +  " Confusion Matrix: " + pstring + " [" + str(np.sum(cm)) + "]"
+        title = algo + " Confusion Matrix: " + pstring + " [" + str(np.sum(cm)) + "]"
         plt.title(title)
 
         # only use the labels that appear in the data
         classes = unique_labels(y, y_pred)
 
         # show all ticks
-        ax.set(xticks=np.arange(cm.shape[1]),
+        ax.set(
+            xticks=np.arange(cm.shape[1]),
             yticks=np.arange(cm.shape[0]),
-            xticklabels=classes, yticklabels=classes,
+            xticklabels=classes,
+            yticklabels=classes,
             title=title,
-            ylabel='True Label',
-            xlabel='Predicted Label')
+            ylabel="True Label",
+            xlabel="Predicted Label",
+        )
 
         # rotate the tick labels and set their alignment
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-                rotation_mode="anchor")
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
         # loop over data dimensions and create text annotations
         thresh = (cm_pct.max() + cm_pct.min()) / 2.0
         for i in range(cm.shape[0]):
             for j in range(cm.shape[1]):
                 cm_text = format(cm_pct[i, j], fmt) + "  [" + str(cm[i, j]) + "]"
-                ax.text(j, i, cm_text,
-                        ha="center", va="center",
-                        color="white" if cm_pct[i, j] >= thresh else "black")
+                ax.text(j, i, cm_text, ha="center", va="center", color="white" if cm_pct[i, j] >= thresh else "black")
 
         # show the color bar
-        im = ax.imshow(cm_pct, interpolation='nearest', cmap=cmap)
+        im = ax.imshow(cm_pct, interpolation="nearest", cmap=cmap)
         ax.figure.colorbar(im, ax=ax)
 
         # save the chart
         tag = USEP.join([pstring, algo])
-        write_plot('matplotlib', plt, 'confusion', tag, plot_dir)
+        write_plot("matplotlib", plt, "confusion", tag, plot_dir)
 
 
 #
 # Function plot_validation_curve
 #
+
 
 def plot_validation_curve(model, partition, pname, prange):
     r"""Generate scikit-learn validation curves.
@@ -725,10 +722,10 @@ def plot_validation_curve(model, partition, pname, prange):
 
     # Extract model parameters.
 
-    cv_folds = model.specs['cv_folds']
-    n_jobs = model.specs['n_jobs']
-    scorer = model.specs['scorer']
-    verbosity = model.specs['verbosity']
+    cv_folds = model.specs["cv_folds"]
+    n_jobs = model.specs["n_jobs"]
+    scorer = model.specs["scorer"]
+    model.specs["verbosity"]
 
     # Get X, Y for correct partition.
 
@@ -747,14 +744,14 @@ def plot_validation_curve(model, partition, pname, prange):
         estimator = model.estimators[algo]
         # set up plot
         train_scores, test_scores = validation_curve(
-            estimator, X, y, param_name=pname, param_range=prange,
-            cv=cv_folds, scoring=scorer, n_jobs=n_jobs)
+            estimator, X, y, param_name=pname, param_range=prange, cv=cv_folds, scoring=scorer, n_jobs=n_jobs
+        )
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
         test_scores_std = np.std(test_scores, axis=1)
         # set up figure
-        plt.style.use('classic')
+        plt.style.use("classic")
         plt.figure()
         # plot learning curves
         title = BSEP.join([algo, "Validation Curve [", pstring, "]"])
@@ -768,20 +765,22 @@ def plot_validation_curve(model, partition, pname, prange):
         plt.ylim(0.0, 1.1)
         # plot scores
         plt.plot(prange, train_scores_mean, label="Training Score", color="r")
-        plt.fill_between(prange, train_scores_mean - train_scores_std,
-                         train_scores_mean + train_scores_std, alpha=alpha, color="r")
-        plt.plot(prange, test_scores_mean, label="Cross-Validation Score",
-                 color="g")
-        plt.fill_between(prange, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=alpha, color="g")
-        plt.legend(loc="best")        # save the plot
+        plt.fill_between(
+            prange, train_scores_mean - train_scores_std, train_scores_mean + train_scores_std, alpha=alpha, color="r"
+        )
+        plt.plot(prange, test_scores_mean, label="Cross-Validation Score", color="g")
+        plt.fill_between(
+            prange, test_scores_mean - test_scores_std, test_scores_mean + test_scores_std, alpha=alpha, color="g"
+        )
+        plt.legend(loc="best")  # save the plot
         tag = USEP.join([pstring, algo])
-        write_plot('matplotlib', plt, 'validation_curve', tag, plot_dir)
+        write_plot("matplotlib", plt, "validation_curve", tag, plot_dir)
 
 
 #
 # Function plot_boundary
 #
+
 
 def plot_boundary(model, partition, f1=0, f2=1):
     r"""Display a comparison of classifiers
@@ -817,8 +816,8 @@ def plot_boundary(model, partition, f1=0, f2=1):
 
     # For classification only
 
-    if model.specs['model_type'] != ModelType.classification:
-        logger.info('Boundary Plots are for classification only')
+    if model.specs["model_type"] != ModelType.classification:
+        logger.info("Boundary Plots are for classification only")
         return None
 
     # Get X, Y for correct partition
@@ -833,22 +832,22 @@ def plot_boundary(model, partition, f1=0, f2=1):
 
     n_classifiers = len(model.algolist)
     plt.figure(figsize=(3 * 2, n_classifiers * 2))
-    plt.subplots_adjust(bottom=.2, top=.95)
+    plt.subplots_adjust(bottom=0.2, top=0.95)
 
     xx = np.linspace(3, 9, 100)
     yy = np.linspace(1, 5, 100).T
     xx, yy = np.meshgrid(xx, yy)
-    Xfull = np.c_[xx.ravel(), yy.ravel()]
+    np.c_[xx.ravel(), yy.ravel()]
 
     # Plot each classification probability
 
     for index, name in enumerate(model.algolist):
         # predictions
-        y_pred = model.preds[(algo, partition)]
+        y_pred = model.preds[(name, partition)]
         classif_rate = np.mean(y_pred.ravel() == y.ravel()) * 100
-        logger.info("Classification Rate for %s : %f " % (name, classif_rate))
+        logger.info(f"Classification Rate for {name} : {classif_rate:f} ")
         # probabilities
-        probas = model.probas[(algo, partition)]
+        probas = model.probas[(name, partition)]
         n_classes = np.unique(y_pred).size
         # plot each class
         for k in range(n_classes):
@@ -856,31 +855,30 @@ def plot_boundary(model, partition, f1=0, f2=1):
             plt.title("Class %d" % k)
             if k == 0:
                 plt.ylabel(name)
-            imshow_handle = plt.imshow(probas[:, k].reshape((100, 100)),
-                                       extent=(3, 9, 1, 5), origin='lower')
+            imshow_handle = plt.imshow(probas[:, k].reshape((100, 100)), extent=(3, 9, 1, 5), origin="lower")
             plt.xticks(())
             plt.yticks(())
-            idx = (y_pred == k)
+            idx = y_pred == k
             if idx.any():
-                plt.scatter(X[idx, 0], X[idx, 1], marker='o', c='k')
+                plt.scatter(X[idx, 0], X[idx, 1], marker="o", c="k")
 
     # Plot the probability color bar
 
     ax = plt.axes([0.15, 0.04, 0.7, 0.05])
     plt.title("Probability")
-    plt.colorbar(imshow_handle, cax=ax, orientation='horizontal')
+    plt.colorbar(imshow_handle, cax=ax, orientation="horizontal")
 
     # Save the plot
     plot_dir = get_plot_directory(model)
-    write_plot('matplotlib', figure, 'boundary', pstring, plot_dir)
+    write_plot("matplotlib", figure, "boundary", pstring, plot_dir)
 
 
 #
 # Function plot_partial_dependence
 #
 
-def plot_partial_dependence(est, X, features, fnames, tag,
-                            n_jobs=-1, verbosity=0, directory=None):
+
+def plot_partial_dependence_custom(est, X, features, fnames, tag, n_jobs=-1, verbosity=0, directory=None):
     r"""Display a Partial Dependence Plot.
 
     Parameters
@@ -917,22 +915,23 @@ def plot_partial_dependence(est, X, features, fnames, tag,
 
     # Plot partial dependence
 
-    fig, axs = plot_partial_dependence(est, X, features, feature_names=fnames,
-                                       grid_resolution=50, n_jobs=n_jobs,
-                                       verbose=verbosity)
+    fig, axs = plot_partial_dependence(
+        est, X, features, feature_names=fnames, grid_resolution=50, n_jobs=n_jobs, verbose=verbosity
+    )
     title = "Partial Dependence Plot"
     fig.suptitle(title)
     plt.subplots_adjust(top=0.9)  # tight_layout causes overlap with suptitle
 
     # Save the plot
-    write_plot(model, 'matplotlib', plt, 'partial_dependence', tag, directory)
+    write_plot("matplotlib", plt, "partial_dependence", tag, directory)
 
 
 #
 # Function plot_scatter
 #
 
-def plot_scatter(df, features, target, tag='eda', directory=None):
+
+def plot_scatter(df, features, target, tag="eda", directory=None):
     r"""Plot a scatterplot matrix, also known as a pair plot.
 
     Parameters
@@ -972,14 +971,15 @@ def plot_scatter(df, features, target, tag='eda', directory=None):
     sns_plot = sns.pairplot(df, hue=target)
 
     # Save the plot
-    write_plot('seaborn', sns_plot, 'scatter_plot', tag, directory)
+    write_plot("seaborn", sns_plot, "scatter_plot", tag, directory)
 
 
 #
 # Function plot_facet_grid
 #
 
-def plot_facet_grid(df, target, frow, fcol, tag='eda', directory=None):
+
+def plot_facet_grid(df, target, frow, fcol, tag="eda", directory=None):
     r"""Plot a Seaborn faceted histogram grid.
 
     Parameters
@@ -1017,7 +1017,7 @@ def plot_facet_grid(df, target, frow, fcol, tag='eda', directory=None):
     tmin = df[target].min()
     trange = tmax - tmin
     iqr = df[target].quantile(Q3) - df[target].quantile(Q1)
-    h = 2 * iqr * (tlen ** (-1/3))
+    h = 2 * iqr * (tlen ** (-1 / 3))
     nbins = math.ceil(trange / h)
 
     # Generate the pair plot
@@ -1029,14 +1029,15 @@ def plot_facet_grid(df, target, frow, fcol, tag='eda', directory=None):
     fg.map(plt.hist, target, color="steelblue", bins=bins, lw=0)
 
     # Save the plot
-    write_plot('seaborn', fg, 'facet_grid', tag, directory)
+    write_plot("seaborn", fg, "facet_grid", tag, directory)
 
 
 #
 # Function plot_distribution
 #
 
-def plot_distribution(df, target, tag='eda', directory=None):
+
+def plot_distribution(df, target, tag="eda", directory=None):
     r"""Display a Distribution Plot.
 
     Parameters
@@ -1069,14 +1070,15 @@ def plot_distribution(df, target, tag='eda', directory=None):
     dist_fig = dist_plot.get_figure()
 
     # Save the plot
-    write_plot('seaborn', dist_fig, 'distribution_plot', tag, directory)
+    write_plot("seaborn", dist_fig, "distribution_plot", tag, directory)
 
 
 #
 # Function plot_box
 #
 
-def plot_box(df, x, y, hue, tag='eda', directory=None):
+
+def plot_box(df, x, y, hue, tag="eda", directory=None):
     r"""Display a Box Plot.
 
     Parameters
@@ -1114,14 +1116,15 @@ def plot_box(df, x, y, hue, tag='eda', directory=None):
     box_fig = box_plot.get_figure()
 
     # Save the plot
-    write_plot('seaborn', box_fig, 'box_plot', tag, directory)
+    write_plot("seaborn", box_fig, "box_plot", tag, directory)
 
 
 #
 # Function plot_swarm
 #
 
-def plot_swarm(df, x, y, hue, tag='eda', directory=None):
+
+def plot_swarm(df, x, y, hue, tag="eda", directory=None):
     r"""Display a Swarm Plot.
 
     Parameters
@@ -1158,7 +1161,7 @@ def plot_swarm(df, x, y, hue, tag='eda', directory=None):
     swarm_fig = swarm_plot.get_figure()
 
     # Save the plot
-    write_plot('seaborn', swarm_fig, 'swarm_plot', tag, directory)
+    write_plot("seaborn", swarm_fig, "swarm_plot", tag, directory)
 
 
 #
@@ -1170,7 +1173,8 @@ def plot_swarm(df, x, y, hue, tag='eda', directory=None):
 # Function plot_time_series
 #
 
-def plot_time_series(df, target, tag='eda', directory=None):
+
+def plot_time_series(df, target, tag="eda", directory=None):
     r"""Plot time series data.
 
     Parameters
@@ -1203,14 +1207,15 @@ def plot_time_series(df, target, tag='eda', directory=None):
     ts_fig = ts_plot.get_figure()
 
     # Save the plot
-    write_plot('seaborn', ts_fig, 'time_series_plot', tag, directory)
+    write_plot("seaborn", ts_fig, "time_series_plot", tag, directory)
 
 
 #
 # Function plot_candlestick
 #
 
-def plot_candlestick(df, symbol, datecol='date', directory=None):
+
+def plot_candlestick(df, symbol, datecol="date", directory=None):
     r"""Plot time series data.
 
     Parameters
@@ -1251,7 +1256,7 @@ def plot_candlestick(df, symbol, datecol='date', directory=None):
 
     inc = df.close > df.open
     dec = df.open > df.close
-    w = 12 * 60 * 60 * 1000 # half day in ms
+    w = 12 * 60 * 60 * 1000  # half day in ms
 
     TOOLS = "pan, wheel_zoom, box_zoom, reset, save"
 
@@ -1266,4 +1271,4 @@ def plot_candlestick(df, symbol, datecol='date', directory=None):
     p.rect(df.date[dec], mids[dec], w, spans[dec], fill_color="#F2583E", line_color="black")
 
     # Save the plot
-    write_plot('bokeh', p, 'candlestick_chart', symbol, directory)
+    write_plot("bokeh", p, "candlestick_chart", symbol, directory)

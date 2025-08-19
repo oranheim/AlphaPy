@@ -26,45 +26,38 @@
 # Imports
 #
 
-from alphapy.globals import BSEP, LOFF, NULLTEXT
-from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import Encoders
-from alphapy.globals import ModelType
-from alphapy.globals import Scalers
-from alphapy.variables import Variable
-from alphapy.variables import vparse
-
-import category_encoders as ce
-from importlib import import_module
 import itertools
 import logging
-import math
-import numpy as np
-import os
-import pandas as pd
 import re
-from scipy import sparse
+from collections.abc import Callable
+from typing import Any
+
+import category_encoders as ce
+import numpy as np
+import pandas as pd
 import scipy.stats as sps
+from numpy.typing import NDArray
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_selection import chi2
-from sklearn.feature_selection import f_classif
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import SelectFdr
-from sklearn.feature_selection import SelectFpr
-from sklearn.feature_selection import SelectFwe
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import SelectPercentile
-from sklearn.feature_selection import VarianceThreshold
+from sklearn.feature_selection import (
+    SelectFdr,
+    SelectFpr,
+    SelectFwe,
+    SelectKBest,
+    SelectPercentile,
+    VarianceThreshold,
+    chi2,
+    f_classif,
+    f_regression,
+)
 from sklearn.impute import SimpleImputer
-from sklearn.manifold import Isomap
-from sklearn.manifold import TSNE
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.preprocessing import StandardScaler
-import sys
+from sklearn.manifold import TSNE, Isomap
+from sklearn.preprocessing import MinMaxScaler, PolynomialFeatures, StandardScaler
 
+from alphapy import transforms
+from alphapy.globals import LOFF, NULLTEXT, USEP, Encoders, ModelType, Scalers
+from alphapy.variables import vparse
 
 #
 # Initialize logger
@@ -77,42 +70,182 @@ logger = logging.getLogger(__name__)
 # Define feature scoring functions
 #
 
-feature_scorers = {'f_classif'    : f_classif,
-                   'chi2'         : chi2,
-                   'f_regression' : f_regression,
-                   'SelectKBest'  : SelectKBest,
-                   'SelectFpr'    : SelectFpr,
-                   'SelectFdr'    : SelectFdr,
-                   'SelectFwe'    : SelectFwe}
+feature_scorers = {
+    "f_classif": f_classif,
+    "chi2": chi2,
+    "f_regression": f_regression,
+    "SelectKBest": SelectKBest,
+    "SelectFpr": SelectFpr,
+    "SelectFdr": SelectFdr,
+    "SelectFwe": SelectFwe,
+}
 
 
 #
 # Define Encoder map
 #
 
-encoder_map = {Encoders.backdiff     : ce.BackwardDifferenceEncoder,
-               Encoders.basen        : ce.BaseNEncoder,
-               Encoders.binary       : ce.BinaryEncoder,
-               Encoders.catboost     : ce.CatBoostEncoder,
-               Encoders.hashing      : ce.HashingEncoder,
-               Encoders.helmert      : ce.HelmertEncoder,
-               Encoders.jstein       : ce.JamesSteinEncoder,
-               Encoders.leaveone     : ce.LeaveOneOutEncoder,
-               Encoders.mestimate    : ce.MEstimateEncoder,
-               Encoders.onehot       : ce.OneHotEncoder,
-               Encoders.ordinal      : ce.OrdinalEncoder,
-               Encoders.polynomial   : ce.PolynomialEncoder,
-               Encoders.sum          : ce.SumEncoder,
-               Encoders.target       : ce.TargetEncoder,
-               Encoders.woe          : ce.WOEEncoder}
+encoder_map = {
+    Encoders.backdiff: ce.BackwardDifferenceEncoder,
+    Encoders.basen: ce.BaseNEncoder,
+    Encoders.binary: ce.BinaryEncoder,
+    Encoders.catboost: ce.CatBoostEncoder,
+    Encoders.hashing: ce.HashingEncoder,
+    Encoders.helmert: ce.HelmertEncoder,
+    Encoders.jstein: ce.JamesSteinEncoder,
+    Encoders.leaveone: ce.LeaveOneOutEncoder,
+    Encoders.mestimate: ce.MEstimateEncoder,
+    Encoders.onehot: ce.OneHotEncoder,
+    Encoders.ordinal: ce.OrdinalEncoder,
+    Encoders.polynomial: ce.PolynomialEncoder,
+    Encoders.sum: ce.SumEncoder,
+    Encoders.target: ce.TargetEncoder,
+    Encoders.woe: ce.WOEEncoder,
+}
 
 
 #
 # Function apply_transform
 #
 
-def apply_transform(fname, df, fparams):
-    r"""Apply a transform function to a column of the dataframe.
+
+# Security-approved transform functions whitelist
+APPROVED_TRANSFORMS: dict[str, Callable] = {
+    # Built-in transforms from alphapy.transforms module
+    "abovema": transforms.abovema,
+    "adx": transforms.adx,
+    "belowma": transforms.belowma,
+    "c2max": transforms.c2max,
+    "c2min": transforms.c2min,
+    "diff": transforms.diff,
+    "diminus": transforms.diminus,
+    "diplus": transforms.diplus,
+    "dminus": transforms.dminus,
+    "dmplus": transforms.dmplus,
+    "down": transforms.down,
+    "dpc": transforms.dpc,
+    "ema": transforms.ema,
+    "extract_bizday": transforms.extract_bizday,
+    "extract_date": transforms.extract_date,
+    "extract_time": transforms.extract_time,
+    "gap": transforms.gap,
+    "gapbadown": transforms.gapbadown,
+    "gapbaup": transforms.gapbaup,
+    "gapdown": transforms.gapdown,
+    "gapup": transforms.gapup,
+    "gtval": transforms.gtval,
+    "gtval0": transforms.gtval0,
+    "higher": transforms.higher,
+    "highest": transforms.highest,
+    "hlrange": transforms.hlrange,
+    "lower": transforms.lower,
+    "lowest": transforms.lowest,
+    "ma": transforms.ma,
+    "maratio": transforms.maratio,
+    "mval": transforms.mval,
+    "net": transforms.net,
+    "netreturn": transforms.netreturn,
+    "pchange1": transforms.pchange1,
+    "pchange2": transforms.pchange2,
+    "pval": transforms.pval,
+    "rindex": transforms.rindex,
+    "rsi": transforms.rsi,
+    "rtotal": transforms.rtotal,
+    "runs": transforms.runs,
+    "runs_test": transforms.runs_test,
+    "split_to_letters": transforms.split_to_letters,
+    "streak": transforms.streak,
+    "texplode": transforms.texplode,
+    "truehigh": transforms.truehigh,
+    "truelow": transforms.truelow,
+    "truerange": transforms.truerange,
+    "up": transforms.up,
+    "upc": transforms.upc,
+    "xmadown": transforms.xmadown,
+    "xmaup": transforms.xmaup,
+    "zscore": transforms.zscore,
+}
+
+
+def _validate_transform_params(fparams: list[Any]) -> None:
+    """Validate transform parameters for security compliance.
+
+    Parameters
+    ----------
+    fparams : list
+        Transform parameter list to validate
+
+    Raises
+    ------
+    ValueError
+        If parameters are invalid or potentially malicious
+    SecurityError
+        If security validation fails
+    """
+    if not isinstance(fparams, list) or len(fparams) < 2:
+        raise ValueError("Transform parameters must be a list with at least 2 elements")
+
+    module_name = fparams[0]
+    func_name = fparams[1]
+
+    # Security validation: only allow string parameters
+    if not isinstance(module_name, str) or not isinstance(func_name, str):
+        raise ValueError("Module and function names must be strings")
+
+    # Security validation: check for suspicious patterns in function names
+    # (module names are ignored but still validated for logging/audit purposes)
+    suspicious_patterns = [
+        "__",
+        "eval",
+        "exec",
+        "compile",
+        "open",
+        "file",
+        "input",
+        "raw_input",
+        "reload",
+        "import",
+        "subprocess",
+        "system",
+        "commands",
+        "popen",
+        "spawn",
+        "call",
+        "run",
+        "popen",
+    ]
+
+    for pattern in suspicious_patterns:
+        if pattern in func_name.lower():
+            raise SecurityError(f"Suspicious pattern '{pattern}' detected in function name")
+
+    # Validate function name format (alphanumeric + underscore only)
+    if not func_name.replace("_", "").isalnum():
+        raise ValueError(f"Invalid function name format: {func_name}")
+
+    # Check for path traversal attempts in module name (for audit logging)
+    if ".." in module_name or "/" in module_name or "\\" in module_name:
+        raise SecurityError("Path traversal attempt detected in module name")
+
+
+class SecurityError(Exception):
+    """Custom exception for security-related errors."""
+
+    pass
+
+
+def apply_transform(fname: str, df: pd.DataFrame, fparams: list[Any]) -> pd.DataFrame | None:
+    r"""Apply a secure transform function to a column of the dataframe.
+
+    This function implements a security-hardened transform system that only
+    allows execution of pre-approved transform functions from a whitelist.
+
+    Security Features:
+    - Whitelist-only function execution
+    - Input validation and sanitization
+    - No arbitrary module imports
+    - No external file system access
+    - Comprehensive parameter validation
 
     Parameters
     ----------
@@ -121,38 +254,97 @@ def apply_transform(fname, df, fparams):
     df : pandas.DataFrame
         Dataframe containing the column ``fname``.
     fparams : list
-        The module, function, and parameter list of the transform
-        function
+        The function name and parameter list for the transform function.
+        Format: ["deprecated_module_name", "function_name", ...parameters]
+        Note: module_name is ignored for security - only function_name is used.
 
     Returns
     -------
-    new_features : pandas.DataFrame
-        The set of features after applying a transform function.
+    new_features : pandas.DataFrame or None
+        The set of features after applying a transform function,
+        or None if the transform fails or is not approved.
 
+    Raises
+    ------
+    SecurityError
+        If security validation fails
+    ValueError
+        If parameters are invalid
+
+    Notes
+    -----
+    This is a security-hardened version that replaces the previous
+    vulnerable implementation. Only pre-approved transform functions
+    from the APPROVED_TRANSFORMS whitelist can be executed.
+
+    Examples
+    --------
+    >>> # Secure usage - only whitelisted functions work
+    >>> result = apply_transform("price", df, ["deprecated", "ma", 20])
+
+    >>> # This will fail - not in whitelist
+    >>> result = apply_transform("price", df, ["os", "system", "rm -rf /"])
+    SecurityError: Function 'system' not in approved transforms whitelist
     """
-    # Extract the transform parameter list
-    module = fparams[0]
-    func_name = fparams[1]
-    plist = fparams[2:]
-    # Append to system path
-    sys.path.append(os.getcwd())
-    # Import the external transform function
-    ext_module = import_module(module)
-    func = getattr(ext_module, func_name)
-    # Prepend the parameter list with the data frame and feature name
-    plist.insert(0, fname)
-    plist.insert(0, df)
-    # Apply the transform
-    logger.info("Applying function %s from module %s to feature %s",
-                func_name, module, fname)
-    return func(*plist)
+    try:
+        # Validate input parameters for security
+        _validate_transform_params(fparams)
+
+        # Extract function name (ignore deprecated module parameter for security)
+        if len(fparams) < 2:
+            raise ValueError("Transform parameters must include function name")
+
+        # fparams[0] was previously module name - now ignored for security
+        func_name = fparams[1]
+        transform_params = fparams[2:]  # Additional parameters for the transform
+
+        # Security check: only allow whitelisted functions
+        if func_name not in APPROVED_TRANSFORMS:
+            available_funcs = sorted(APPROVED_TRANSFORMS.keys())
+            logger.error("Security: Attempted to use non-approved transform '%s'", func_name)
+            logger.info("Available approved transforms: %s", available_funcs)
+            raise SecurityError(
+                f"Function '{func_name}' not in approved transforms whitelist. Available functions: {available_funcs}"
+            )
+
+        # Get the approved transform function
+        transform_func = APPROVED_TRANSFORMS[func_name]
+
+        # Prepare parameter list for transform function
+        # Most transforms expect (dataframe, column_name, ...additional_params)
+        plist = [df, fname, *list(transform_params)]
+
+        # Apply the secure transform
+        logger.info("Applying approved transform function %s to feature %s", func_name, fname)
+        logger.debug("Transform parameters: %s", transform_params)
+
+        result = transform_func(*plist)
+
+        # Validate result
+        if result is not None and hasattr(result, "shape"):
+            logger.info("Transform %s completed successfully, result shape: %s", func_name, result.shape)
+        else:
+            logger.warning("Transform %s returned None or invalid result", func_name)
+
+        return result
+
+    except (SecurityError, ValueError):
+        # Re-raise security and validation errors
+        raise
+    except Exception as e:
+        logger.error(
+            "Transform %s failed for feature %s: %s", fparams[1] if len(fparams) > 1 else "unknown", fname, str(e)
+        )
+        logger.debug("Transform error details", exc_info=True)
+        return None
 
 
 #
 # Function apply_transforms
 #
 
-def apply_transforms(model, X):
+
+def apply_transforms(model: Any, X: pd.DataFrame) -> pd.DataFrame:
     r"""Apply special functions to the original features.
 
     Parameters
@@ -176,7 +368,7 @@ def apply_transforms(model, X):
     """
 
     # Extract model parameters
-    transforms = model.specs['transforms']
+    transforms = model.specs["transforms"]
 
     # Log input parameters
 
@@ -203,15 +395,23 @@ def apply_transforms(model, X):
             # apply transform to the most recent value
             if lag_values:
                 f_latest = fcols[lag_values.index(min(lag_values))]
-                features = apply_transform(f_latest, X, transforms[fname])
-                if features is not None:
-                    if features.shape[0] == X.shape[0]:
-                        all_features = pd.concat([all_features, features], axis=1)
+                try:
+                    features = apply_transform(f_latest, X, transforms[fname])
+                    if features is not None:
+                        if hasattr(features, "shape") and features.shape[0] == X.shape[0]:
+                            all_features = pd.concat([all_features, features], axis=1)
+                        else:
+                            raise IndexError(
+                                "The number of transform rows [%d] must match X [%d]" % (features.shape[0], X.shape[0])
+                            )
                     else:
-                        raise IndexError("The number of transform rows [%d] must match X [%d]" %
-                                         (features.shape[0], X.shape[0]))
-                else:
-                    logger.info("Could not apply transform for feature %s", fname)
+                        logger.info("Could not apply transform for feature %s", fname)
+                except SecurityError as e:
+                    logger.error("Security error applying transform for feature %s: %s", fname, str(e))
+                    raise  # Re-raise security errors to prevent system compromise
+                except Exception as e:
+                    logger.error("Error applying transform for feature %s: %s", fname, str(e))
+                    logger.info("Skipping transform for feature %s due to error", fname)
             else:
                 logger.info("Feature %s is missing for transform", fname)
     else:
@@ -227,7 +427,8 @@ def apply_transforms(model, X):
 # Function impute_values
 #
 
-def impute_values(feature, dt, sentinel):
+
+def impute_values(feature: pd.Series, dt: str, sentinel: Any) -> pd.Series:
     r"""Impute values for a given data type. The *median* strategy
     is applied for floating point values, and the *most frequent*
     strategy is applied for integer or Boolean values.
@@ -262,23 +463,23 @@ def impute_values(feature, dt, sentinel):
     try:
         # for pandas series
         feature = feature.values.reshape(-1, 1)
-    except:
+    except AttributeError:
         # for numpy array
         feature = feature.reshape(-1, 1)
 
-    if dt == 'float64':
-        logger.info("    Imputation for Data Type %s: Median Strategy" % dt)
+    if dt == "float64":
+        logger.info(f"    Imputation for Data Type {dt}: Median Strategy")
         # replace infinity with imputed value
         feature[np.isinf(feature)] = np.nan
-        imp = SimpleImputer(missing_values=np.nan, strategy='median')
-    elif dt == 'int64':
-        logger.info("    Imputation for Data Type %s: Most Frequent Strategy" % dt)
-        imp = SimpleImputer(missing_values=np.nan, strategy='most_frequent')
-    elif dt != 'bool':
+        imp = SimpleImputer(missing_values=np.nan, strategy="median")
+    elif dt == "int64":
+        logger.info(f"    Imputation for Data Type {dt}: Most Frequent Strategy")
+        imp = SimpleImputer(missing_values=np.nan, strategy="most_frequent")
+    elif dt != "bool":
         logger.info("    Imputation for Data Type %s: Fill Strategy with %d" % (dt, sentinel))
-        imp = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=sentinel)
+        imp = SimpleImputer(missing_values=np.nan, strategy="constant", fill_value=sentinel)
     else:
-        logger.info("    No Imputation for Data Type %s" % dt)
+        logger.info(f"    No Imputation for Data Type {dt}")
         imp = None
 
     imputed = imp.fit_transform(feature) if imp else feature
@@ -289,8 +490,10 @@ def impute_values(feature, dt, sentinel):
 # Function get_numerical_features
 #
 
-def get_numerical_features(fnum, fname, df, nvalues, dt,
-                           sentinel, logt, plevel):
+
+def get_numerical_features(
+    fnum: int, fname: str, df: pd.DataFrame, nvalues: int, dt: str, sentinel: Any, logt: bool, plevel: float
+) -> tuple[int, list[str], pd.DataFrame]:
     r"""Transform numerical features with imputation and possibly
     log-transformation.
 
@@ -323,11 +526,15 @@ def get_numerical_features(fnum, fname, df, nvalues, dt,
     """
     feature = df[fname]
     if len(feature) == nvalues:
-        logger.info("Feature %d: %s is a numerical feature of type %s with maximum number of values %d",
-                    fnum, fname, dt, nvalues)
+        logger.info(
+            "Feature %d: %s is a numerical feature of type %s with maximum number of values %d",
+            fnum,
+            fname,
+            dt,
+            nvalues,
+        )
     else:
-        logger.info("Feature %d: %s is a numerical feature of type %s with %d unique values",
-                    fnum, fname, dt, nvalues)
+        logger.info("Feature %d: %s is a numerical feature of type %s with %d unique values", fnum, fname, dt, nvalues)
     # imputer for float, integer, or boolean data types
     new_values = impute_values(feature, dt, sentinel)
     # log-transform any values that do not fit a normal distribution
@@ -335,19 +542,19 @@ def get_numerical_features(fnum, fname, df, nvalues, dt,
     if logt and np.all(new_values > 0):
         _, pvalue = sps.normaltest(new_values)
         if pvalue <= plevel:
-            logger.info("Feature %d: %s is not normally distributed [p-value: %f]",
-                        fnum, fname, pvalue)
+            logger.info("Feature %d: %s is not normally distributed [p-value: %f]", fnum, fname, pvalue)
             new_values = np.log(new_values)
         else:
-            new_fname = USEP.join([new_fname, 'log'])
-    return new_values, [new_fname]
+            new_fname = USEP.join([new_fname, "log"])
+    return fnum, [new_fname], new_values
 
 
 #
 # Function get_polynomials
 #
 
-def get_polynomials(features, poly_degree):
+
+def get_polynomials(features: list[str], poly_degree: int) -> tuple[Any, list[str]]:
     r"""Generate interactions that are products of distinct features.
 
     Parameters
@@ -371,9 +578,7 @@ def get_polynomials(features, poly_degree):
     .. [POLY] http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html
 
     """
-    polyf = PolynomialFeatures(interaction_only=True,
-                               degree=poly_degree,
-                               include_bias=False)
+    polyf = PolynomialFeatures(interaction_only=True, degree=poly_degree, include_bias=False)
     poly_features = polyf.fit_transform(features)
     poly_fnames = polyf.get_feature_names()
     return poly_features, poly_fnames
@@ -383,7 +588,10 @@ def get_polynomials(features, poly_degree):
 # Function get_text_features
 #
 
-def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
+
+def get_text_features(
+    fnum: int, fname: str, df: pd.DataFrame, nvalues: int, vectorize: bool, ngrams_max: int
+) -> tuple[int, list[str], pd.DataFrame]:
     r"""Transform text features with count vectorization and TF-IDF,
     or alternatively factorization.
 
@@ -419,11 +627,23 @@ def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
     min_length = int(feature.astype(str).str.len().min())
     max_length = int(feature.astype(str).str.len().max())
     if len(feature) == nvalues:
-        logger.info("Feature %d: %s is a text feature [%d:%d] with maximum number of values %d",
-                    fnum, fname, min_length, max_length, nvalues)
+        logger.info(
+            "Feature %d: %s is a text feature [%d:%d] with maximum number of values %d",
+            fnum,
+            fname,
+            min_length,
+            max_length,
+            nvalues,
+        )
     else:
-        logger.info("Feature %d: %s is a text feature [%d:%d] with %d unique values",
-                    fnum, fname, min_length, max_length, nvalues)
+        logger.info(
+            "Feature %d: %s is a text feature [%d:%d] with %d unique values",
+            fnum,
+            fname,
+            min_length,
+            max_length,
+            nvalues,
+        )
     # need a null text placeholder for vectorization
     feature.fillna(value=NULLTEXT, inplace=True)
     # vectorization creates many columns, otherwise just factorize
@@ -434,22 +654,23 @@ def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
             new_features = vectorizer.fit_transform(feature)
             new_fnames = vectorizer.get_feature_names()
             logger.info("Feature %d: %s => Vectorization Succeeded", fnum, fname)
-        except:
+        except (ValueError, AttributeError, TypeError):
             logger.info("Feature %d: %s => Vectorization Failed", fnum, fname)
             new_features, _ = pd.factorize(feature)
-            new_fnames = [USEP.join([fname, 'factor'])]
+            new_fnames = [USEP.join([fname, "factor"])]
     else:
         logger.info("Feature %d: %s => Factorization", fnum, fname)
         new_features, _ = pd.factorize(feature)
-        new_fnames = [USEP.join([fname, 'factor'])]
-    return new_features, new_fnames
+        new_fnames = [USEP.join([fname, "factor"])]
+    return fnum, new_fnames, new_features
 
 
 #
 # Function float_factor
 #
 
-def float_factor(x, rounding):
+
+def float_factor(x: float, rounding: int) -> float | int:
     r"""Convert a floating point number to a factor.
 
     Parameters
@@ -465,7 +686,7 @@ def float_factor(x, rounding):
         The resulting factor.
 
     """
-    num2str = '{0:.{1}f}'.format
+    num2str = "{0:.{1}f}".format
     fstr = re.sub("[^0-9]", "", num2str(x, rounding))
     ffactor = int(fstr) if len(fstr) > 0 else 0
     return ffactor
@@ -475,7 +696,8 @@ def float_factor(x, rounding):
 # Function create_crosstabs
 #
 
-def create_crosstabs(model):
+
+def create_crosstabs(model: Any) -> Any:
     r"""Create cross-tabulations for categorical variables.
 
     Parameters
@@ -498,7 +720,7 @@ def create_crosstabs(model):
 
     # Extract model parameters
 
-    factors = model.specs['factors']
+    factors = model.specs["factors"]
 
     # Iterate through columns, dispatching and transforming each feature.
 
@@ -506,12 +728,12 @@ def create_crosstabs(model):
     for fname in X:
         if fname in factors:
             logger.info("Creating crosstabs for feature %s", fname)
-            ct = pd.crosstab(X[fname], y).apply(lambda r : r / r.sum(), axis=1)
+            ct = pd.crosstab(X[fname], y).apply(lambda r: r / r.sum(), axis=1)
             crosstabs[fname] = ct
 
     # Save crosstabs to the feature map
 
-    model.feature_map['crosstabs'] = crosstabs
+    model.feature_map["crosstabs"] = crosstabs
     return model
 
 
@@ -519,8 +741,20 @@ def create_crosstabs(model):
 # Function get_factors
 #
 
-def get_factors(model, X_train, X_test, y_train, fnum, fname,
-                nvalues, dtype, encoder, rounding, sentinel):
+
+def get_factors(
+    model: Any,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    y_train: pd.Series,
+    fnum: int,
+    fname: str,
+    nvalues: int,
+    dtype: str,
+    encoder: str,
+    rounding: int,
+    sentinel: Any,
+) -> tuple[int, list[str], pd.DataFrame, pd.DataFrame]:
     r"""Convert the original feature to a factor.
 
     Parameters
@@ -557,15 +791,14 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
 
     """
 
-    logger.info("Feature %d: %s is a factor of type %s with %d unique values",
-                fnum, fname, dtype, nvalues)
+    logger.info("Feature %d: %s is a factor of type %s with %d unique values", fnum, fname, dtype, nvalues)
     logger.info("Encoding: %s", encoder)
 
     # get feature
     feature_train = X_train[fname]
     feature_test = X_test[fname]
     # convert float to factor
-    if dtype == 'float64':
+    if dtype == "float64":
         logger.info("Rounding: %d", rounding)
         feature_train = feature_train.apply(float_factor, args=[rounding])
         feature_test = feature_test.apply(float_factor, args=[rounding])
@@ -575,9 +808,10 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
     # encoders
     enc = None
     try:
-        enc = encoder_map[encoder](cols=[fname])
-    except:
-        raise ValueError("Unknown Encoder %s" % encoder)
+        encoder_enum = Encoders[encoder]
+        enc = encoder_map[encoder_enum](cols=[fname])
+    except Exception as e:
+        raise ValueError(f"Unknown Encoder {encoder}") from e
     # Transform the train and test features.
     if enc is not None:
         # fit training features
@@ -588,20 +822,18 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
         ftest = enc.transform(df_test)
         # get feature names
         all_fnames = enc.get_feature_names()
-        # concatenate all generated features
-        all_features = np.row_stack((ftrain, ftest))
+        return fnum, all_fnames, ftrain, ftest
     else:
-        all_features = None
-        all_fnames = None
-        logger.info("Encoding for feature %s failed" % fname)
-    return all_features, all_fnames
+        logger.info(f"Encoding for feature {fname} failed")
+        return fnum, [], pd.DataFrame(), pd.DataFrame()
 
 
 #
 # Function create_numpy_features
 #
 
-def create_numpy_features(base_features, sentinel):
+
+def create_numpy_features(base_features: NDArray[Any], sentinel: Any) -> tuple[Any, Any]:
     r"""Calculate the sum, mean, standard deviation, and variance
     of each row.
 
@@ -625,16 +857,14 @@ def create_numpy_features(base_features, sentinel):
 
     # Calculate the total, mean, standard deviation, and variance.
 
-    np_funcs = {'sum'  : np.sum,
-                'mean' : np.mean,
-                'std'  : np.std,
-                'var'  : np.var}
+    np_funcs: dict[str, Callable[..., NDArray[Any]]] = {"sum": np.sum, "mean": np.mean, "std": np.std, "var": np.var}
 
     features = []
     for k in np_funcs:
         logger.info("NumPy Feature: %s", k)
-        feature = np_funcs[k](base_features, axis=1)
-        feature = impute_values(feature, 'float64', sentinel)
+        func = np_funcs[k]
+        feature = func(base_features, axis=1)
+        feature = impute_values(feature, "float64", sentinel)
         features.append(feature)
 
     # Stack and scale the new features.
@@ -652,7 +882,8 @@ def create_numpy_features(base_features, sentinel):
 # Function create_scipy_features
 #
 
-def create_scipy_features(base_features, sentinel):
+
+def create_scipy_features(base_features: NDArray[Any], sentinel: Any) -> tuple[Any, Any]:
     r"""Calculate the skew, kurtosis, and other statistical features
     for each row.
 
@@ -695,24 +926,26 @@ def create_scipy_features(base_features, sentinel):
     logger.info("SciPy Feature: standard error of mean")
     row_sem = sps.sem(base_features, axis=1)
 
-    sp_features = np.column_stack((row_gmean, row_kurtosis, row_ktest,
-                                   row_normal, row_skew, row_stest,
-                                   row_var, row_stn, row_sem))
-    sp_features = impute_values(sp_features, 'float64', sentinel)
+    sp_features = np.column_stack(
+        (row_gmean, row_kurtosis, row_ktest, row_normal, row_skew, row_stest, row_var, row_stn, row_sem)
+    )
+    sp_features = impute_values(sp_features, "float64", sentinel)
     sp_features = StandardScaler().fit_transform(sp_features)
 
     # Return new SciPy features
 
     logger.info("SciPy Feature Count : %d", sp_features.shape[1])
-    sp_fnames = ['sp_geometric_mean',
-                 'sp_kurtosis',
-                 'sp_kurtosis_test',
-                 'sp_normal_test',
-                 'sp_skew',
-                 'sp_skew_test',
-                 'sp_variation',
-                 'sp_signal_to_noise',
-                 'sp_standard_error_of_mean']
+    sp_fnames = [
+        "sp_geometric_mean",
+        "sp_kurtosis",
+        "sp_kurtosis_test",
+        "sp_normal_test",
+        "sp_skew",
+        "sp_skew_test",
+        "sp_variation",
+        "sp_signal_to_noise",
+        "sp_standard_error_of_mean",
+    ]
     return sp_features, sp_fnames
 
 
@@ -720,7 +953,8 @@ def create_scipy_features(base_features, sentinel):
 # Function create_clusters
 #
 
-def create_clusters(features, model):
+
+def create_clusters(features: NDArray[Any], model: Any) -> tuple[Any, list[str]]:
     r"""Cluster the given features.
 
     Parameters
@@ -749,10 +983,10 @@ def create_clusters(features, model):
 
     # Extract model parameters
 
-    cluster_inc = model.specs['cluster_inc']
-    cluster_max = model.specs['cluster_max']
-    cluster_min = model.specs['cluster_min']
-    seed = model.specs['seed']
+    cluster_inc = model.specs["cluster_inc"]
+    cluster_max = model.specs["cluster_max"]
+    cluster_min = model.specs["cluster_min"]
+    seed = model.specs["seed"]
 
     # Log model parameters
 
@@ -764,14 +998,14 @@ def create_clusters(features, model):
 
     cfeatures = np.zeros((features.shape[0], 1))
     cnames = []
-    for i in range(cluster_min, cluster_max+1, cluster_inc):
+    for i in range(cluster_min, cluster_max + 1, cluster_inc):
         logger.info("k = %d", i)
         km = MiniBatchKMeans(n_clusters=i, random_state=seed)
         km.fit(features)
         labels = km.predict(features)
         labels = labels.reshape(-1, 1)
         cfeatures = np.column_stack((cfeatures, labels))
-        cnames.append(USEP.join(['cluster', str(i)]))
+        cnames.append(USEP.join(["cluster", str(i)]))
     cfeatures = np.delete(cfeatures, 0, axis=1)
 
     # Return new clustering features
@@ -784,7 +1018,8 @@ def create_clusters(features, model):
 # Function create_pca_features
 #
 
-def create_pca_features(features, model):
+
+def create_pca_features(features: NDArray[Any], model: Any) -> tuple[Any, list[str]]:
     r"""Apply Principal Component Analysis (PCA) to the features.
 
     Parameters
@@ -813,10 +1048,10 @@ def create_pca_features(features, model):
 
     # Extract model parameters
 
-    pca_inc = model.specs['pca_inc']
-    pca_max = model.specs['pca_max']
-    pca_min = model.specs['pca_min']
-    pca_whiten = model.specs['pca_whiten']
+    pca_inc = model.specs["pca_inc"]
+    pca_max = model.specs["pca_max"]
+    pca_min = model.specs["pca_min"]
+    pca_whiten = model.specs["pca_whiten"]
 
     # Log model parameters
 
@@ -829,11 +1064,11 @@ def create_pca_features(features, model):
 
     pfeatures = np.zeros((features.shape[0], 1))
     pnames = []
-    for i in range(pca_min, pca_max+1, pca_inc):
+    for i in range(pca_min, pca_max + 1, pca_inc):
         logger.info("n_components = %d", i)
         X_pca = PCA(n_components=i, whiten=pca_whiten).fit_transform(features)
         pfeatures = np.column_stack((pfeatures, X_pca))
-        pnames.append(USEP.join(['pca', str(i)]))
+        pnames.append(USEP.join(["pca", str(i)]))
     pfeatures = np.delete(pfeatures, 0, axis=1)
 
     # Return new clustering features
@@ -846,7 +1081,8 @@ def create_pca_features(features, model):
 # Function create_isomap_features
 #
 
-def create_isomap_features(features, model):
+
+def create_isomap_features(features: NDArray[Any], model: Any) -> tuple[Any, list[str]]:
     r"""Create Isomap features.
 
     Parameters
@@ -881,9 +1117,9 @@ def create_isomap_features(features, model):
 
     # Extract model parameters
 
-    iso_components = model.specs['iso_components']
-    iso_neighbors = model.specs['iso_neighbors']
-    n_jobs = model.specs['n_jobs']
+    iso_components = model.specs["iso_components"]
+    iso_neighbors = model.specs["iso_neighbors"]
+    n_jobs = model.specs["n_jobs"]
 
     # Log model parameters
 
@@ -892,10 +1128,9 @@ def create_isomap_features(features, model):
 
     # Generate Isomap features
 
-    model = Isomap(n_neighbors=iso_neighbors, n_components=iso_components,
-                   n_jobs=n_jobs)
+    model = Isomap(n_neighbors=iso_neighbors, n_components=iso_components, n_jobs=n_jobs)
     ifeatures = model.fit_transform(features)
-    inames = [USEP.join(['isomap', str(i+1)]) for i in range(iso_components)]
+    inames = [USEP.join(["isomap", str(i + 1)]) for i in range(iso_components)]
 
     # Return new Isomap features
 
@@ -907,7 +1142,8 @@ def create_isomap_features(features, model):
 # Function create_tsne_features
 #
 
-def create_tsne_features(features, model):
+
+def create_tsne_features(features: NDArray[Any], model: Any) -> tuple[Any, list[str]]:
     r"""Create t-SNE features.
 
     Parameters
@@ -936,10 +1172,10 @@ def create_tsne_features(features, model):
 
     # Extract model parameters
 
-    seed = model.specs['seed']
-    tsne_components = model.specs['tsne_components']
-    tsne_learn_rate = model.specs['tsne_learn_rate']
-    tsne_perplexity = model.specs['tsne_perplexity']
+    seed = model.specs["seed"]
+    tsne_components = model.specs["tsne_components"]
+    tsne_learn_rate = model.specs["tsne_learn_rate"]
+    tsne_perplexity = model.specs["tsne_perplexity"]
 
     # Log model parameters
 
@@ -949,10 +1185,11 @@ def create_tsne_features(features, model):
 
     # Generate T-SNE features
 
-    model = TSNE(n_components=tsne_components, perplexity=tsne_perplexity,
-                 learning_rate=tsne_learn_rate, random_state=seed)
+    model = TSNE(
+        n_components=tsne_components, perplexity=tsne_perplexity, learning_rate=tsne_learn_rate, random_state=seed
+    )
     tfeatures = model.fit_transform(features)
-    tnames = [USEP.join(['tsne', str(i+1)]) for i in range(tsne_components)]
+    tnames = [USEP.join(["tsne", str(i + 1)]) for i in range(tsne_components)]
 
     # Return new T-SNE features
 
@@ -964,7 +1201,10 @@ def create_tsne_features(features, model):
 # Function create_features
 #
 
-def create_features(model, X, X_train, X_test, y_train):
+
+def create_features(
+    model: Any, X: pd.DataFrame, X_train: pd.DataFrame, X_test: pd.DataFrame, y_train: pd.Series | None
+) -> NDArray[Any]:
     r"""Create features for the train and test set.
 
     Parameters
@@ -994,23 +1234,23 @@ def create_features(model, X, X_train, X_test, y_train):
 
     # Extract model parameters
 
-    clustering = model.specs['clustering']
-    counts_flag = model.specs['counts']
-    encoder = model.specs['encoder']
-    factors = model.specs['factors']
-    isomap = model.specs['isomap']
-    logtransform = model.specs['logtransform']
-    ngrams_max = model.specs['ngrams_max']
-    numpy_flag = model.specs['numpy']
-    pca = model.specs['pca']
-    pvalue_level = model.specs['pvalue_level']
-    rounding = model.specs['rounding']
-    scaling = model.specs['scaler_option']
-    scaler = model.specs['scaler_type']
-    scipy_flag = model.specs['scipy']
-    sentinel = model.specs['sentinel']
-    tsne = model.specs['tsne']
-    vectorize = model.specs['vectorize']
+    clustering = model.specs["clustering"]
+    counts_flag = model.specs["counts"]
+    encoder = model.specs["encoder"]
+    factors = model.specs["factors"]
+    isomap = model.specs["isomap"]
+    logtransform = model.specs["logtransform"]
+    ngrams_max = model.specs["ngrams_max"]
+    numpy_flag = model.specs["numpy"]
+    pca = model.specs["pca"]
+    pvalue_level = model.specs["pvalue_level"]
+    rounding = model.specs["rounding"]
+    scaling = model.specs["scaler_option"]
+    scaler = model.specs["scaler_type"]
+    scipy_flag = model.specs["scipy"]
+    sentinel = model.specs["sentinel"]
+    tsne = model.specs["tsne"]
+    vectorize = model.specs["vectorize"]
 
     # Log input parameters
 
@@ -1022,11 +1262,11 @@ def create_features(model, X, X_train, X_test, y_train):
     if counts_flag:
         logger.info("Creating Count Features")
         logger.info("NA Counts")
-        X['nan_count'] = X.count(axis=1)
+        X["nan_count"] = X.count(axis=1)
         logger.info("Number Counts")
         for i in range(10):
-            fc = USEP.join(['count', str(i)])
-            X[fc] = (X == i).astype(int).sum(axis=1)
+            fc = USEP.join(["count", str(i)])
+            X[fc] = (i == X).astype(int).sum(axis=1)
         logger.info("New Feature Count : %d", X.shape[1])
 
     # Iterate through columns, dispatching and transforming each feature.
@@ -1041,27 +1281,27 @@ def create_features(model, X, X_train, X_test, y_train):
         nunique = len(X[fname].unique())
         # standard processing of numerical, categorical, and text features
         if factors and fname in factors:
-            features, fnames = get_factors(model, X_train, X_test, y_train, fnum, fname,
-                                           nunique, dtype, encoder, rounding, sentinel)
-        elif dtype == 'float64' or dtype == 'int64' or dtype == 'bool':
-
-            features, fnames = get_numerical_features(fnum, fname, X, nunique, dtype,
-                                                      sentinel, logtransform, pvalue_level)
+            fnum, fnames, features, _ = get_factors(
+                model, X_train, X_test, y_train, fnum, fname, nunique, dtype, encoder, rounding, sentinel
+            )
+        elif dtype == "float64" or dtype == "int64" or dtype == "bool":
+            fnum, fnames, features = get_numerical_features(
+                fnum, fname, X, nunique, dtype, sentinel, logtransform, pvalue_level
+            )
             if nunique == 1 and np.isnan(X[fname].unique()):
                 # all nan, features shape is (len, 0), cause Mismatched Features and Names
                 features = np.zeros((X.shape[0], 1))
-        elif dtype == 'object':
-            features, fnames = get_text_features(fnum, fname, X, nunique, vectorize, ngrams_max)
+        elif dtype == "object":
+            fnum, fnames, features = get_text_features(fnum, fname, X, nunique, vectorize, ngrams_max)
         else:
-            raise TypeError("Base Feature Error with unrecognized type %s" % dtype)
+            raise TypeError(f"Base Feature Error with unrecognized type {dtype}")
         if features.shape[0] == all_features.shape[0]:
             # add features
             all_features = np.column_stack((all_features, features))
             # add feature names
             model.feature_names.extend(fnames)
         else:
-            logger.info("Feature %s has the wrong number of rows: %d",
-                        fname, features.shape[0])
+            logger.info("Feature %s has the wrong number of rows: %d", fname, features.shape[0])
     all_features = np.delete(all_features, 0, axis=1)
 
     logger.info("New Feature Count : %d", all_features.shape[1])
@@ -1139,7 +1379,8 @@ def create_features(model, X, X_train, X_test, y_train):
 # Function select_features
 #
 
-def select_features(model):
+
+def select_features(model: Any) -> Any:
     r"""Select features with univariate selection.
 
     Parameters
@@ -1169,13 +1410,12 @@ def select_features(model):
 
     # Extract model parameters.
 
-    fs_percentage = model.specs['fs_percentage']
-    fs_score_func = model.specs['fs_score_func']
+    fs_percentage = model.specs["fs_percentage"]
+    fs_score_func = model.specs["fs_score_func"]
 
     # Select top features based on percentile.
 
-    fs = SelectPercentile(score_func=fs_score_func,
-                          percentile=fs_percentage)
+    fs = SelectPercentile(score_func=fs_score_func, percentile=fs_percentage)
 
     # Perform feature selection and get the support mask
 
@@ -1185,7 +1425,7 @@ def select_features(model):
     # Record the support vector
 
     logger.info("Saving Univariate Support")
-    model.feature_map['uni_support'] = support
+    model.feature_map["uni_support"] = support
 
     # Record the support vector
 
@@ -1215,7 +1455,14 @@ def select_features(model):
 # Function save_features
 #
 
-def save_features(model, X_train, X_test, y_train=None, y_test=None):
+
+def save_features(
+    model: Any,
+    X_train: pd.DataFrame,
+    X_test: pd.DataFrame,
+    y_train: pd.Series | None = None,
+    y_test: pd.Series | None = None,
+) -> Any:
     r"""Save new features to the model.
 
     Parameters
@@ -1254,7 +1501,8 @@ def save_features(model, X_train, X_test, y_train=None, y_test=None):
 # Function create_interactions
 #
 
-def create_interactions(model, X):
+
+def create_interactions(model: Any, X: pd.DataFrame) -> pd.DataFrame:
     r"""Create feature interactions based on the model specifications.
 
     Parameters
@@ -1280,11 +1528,11 @@ def create_interactions(model, X):
 
     # Extract model parameters
 
-    interactions = model.specs['interactions']
-    isample_pct = model.specs['isample_pct']
-    model_type = model.specs['model_type']
-    poly_degree = model.specs['poly_degree']
-    predict_mode = model.specs['predict_mode']
+    interactions = model.specs["interactions"]
+    isample_pct = model.specs["isample_pct"]
+    model_type = model.specs["model_type"]
+    poly_degree = model.specs["poly_degree"]
+    predict_mode = model.specs["predict_mode"]
 
     # Extract model data
 
@@ -1312,9 +1560,9 @@ def create_interactions(model, X):
                 raise TypeError("Unknown model type when creating interactions")
             selector.fit(X_train, y_train)
             support = selector.get_support()
-            model.feature_map['poly_support'] = support
+            model.feature_map["poly_support"] = support
         else:
-            support = model.feature_map['poly_support']
+            support = model.feature_map["poly_support"]
         pfeatures, pnames = get_polynomials(X[:, support], poly_degree)
         model.feature_names.extend(pnames)
         logger.info("Polynomial Feature Count : %d", pfeatures.shape[1])
@@ -1333,7 +1581,8 @@ def create_interactions(model, X):
 # Function drop_features
 #
 
-def drop_features(X, drop):
+
+def drop_features(X: pd.DataFrame, drop: list[str]) -> pd.DataFrame:
     r"""Drop any specified features.
 
     Parameters
@@ -1357,7 +1606,7 @@ def drop_features(X, drop):
                     drop_cols.append(col)
         logger.info("Dropping Features: %s", drop_cols)
         logger.info("Original Feature Count : %d", X.shape[1])
-        X.drop(drop_cols, axis=1, inplace=True, errors='ignore')
+        X.drop(drop_cols, axis=1, inplace=True, errors="ignore")
         logger.info("Reduced Feature Count  : %d", X.shape[1])
     return X
 
@@ -1366,7 +1615,8 @@ def drop_features(X, drop):
 # Function remove_lv_features
 #
 
-def remove_lv_features(model, X):
+
+def remove_lv_features(model: Any, X: pd.DataFrame) -> pd.DataFrame:
     r"""Remove low-variance features.
 
     Parameters
@@ -1393,9 +1643,9 @@ def remove_lv_features(model, X):
 
     # Extract model parameters
 
-    lv_remove = model.specs['lv_remove']
-    lv_threshold = model.specs['lv_threshold']
-    predict_mode = model.specs['predict_mode']
+    lv_remove = model.specs["lv_remove"]
+    lv_threshold = model.specs["lv_threshold"]
+    predict_mode = model.specs["predict_mode"]
 
     # Remove low-variance features
 
@@ -1406,9 +1656,9 @@ def remove_lv_features(model, X):
             selector = VarianceThreshold(threshold=lv_threshold)
             selector.fit(X)
             support = selector.get_support()
-            model.feature_map['lv_support'] = support
+            model.feature_map["lv_support"] = support
         else:
-            support = model.feature_map['lv_support']
+            support = model.feature_map["lv_support"]
         X_reduced = X[:, support]
         model.feature_names = list(itertools.compress(model.feature_names, support))
         logger.info("Reduced Feature Count   : %d", X_reduced.shape[1])

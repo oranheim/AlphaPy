@@ -27,9 +27,7 @@
 #
 
 import logging
-import parser
 import re
-
 
 #
 # Initialize logger
@@ -42,7 +40,8 @@ logger = logging.getLogger(__name__)
 # Class Alias
 #
 
-class Alias(object):
+
+class Alias:
     """Create a new alias as a key-value pair. All aliases are stored
     in ``Alias.aliases``. Duplicate keys or values are not allowed,
     unless the ``replace`` parameter is ``True``.
@@ -63,30 +62,27 @@ class Alias(object):
 
     Examples
     --------
-    
-    >>> Alias('atr', 'ma_truerange')
-    >>> Alias('hc', 'higher_close')
+
+    >>> Alias("atr", "ma_truerange")
+    >>> Alias("hc", "higher_close")
 
     """
 
     # class variable to track all aliases
 
-    aliases = {}
+    aliases: dict[str, str] = {}
 
     # function __new__
 
-    def __new__(cls,
-                name,
-                expr,
-                replace = False):
+    def __new__(cls, name, expr, replace=False):
         # code
         efound = expr in [Alias.aliases[key] for key in Alias.aliases]
-        if efound == True:
+        if efound:
             key = [key for key, aexpr in list(Alias.aliases.items()) if aexpr == expr]
             logger.info("Expression %s already exists for key %s", expr, key)
             return
         else:
-            if replace == True or not name in Alias.aliases:
+            if replace or name not in Alias.aliases:
                 identifier = re.compile(r"^[^\d\W]\w*\Z", re.UNICODE)
                 result1 = re.match(identifier, name)
                 if result1 is None:
@@ -96,31 +92,29 @@ class Alias(object):
                 if result2 is None:
                     logger.info("Invalid alias expression: %s", expr)
                     return
-                return super(Alias, cls).__new__(cls)
+                return super().__new__(cls)
             else:
                 logger.info("Key %s already exists", name)
 
     # function __init__
 
-    def __init__(self,
-                 name,
-                 expr,
-                 replace = False):
+    def __init__(self, name, expr, replace=False):
         # code
-        self.name = name;
-        self.expr = expr;
+        self.name = name
+        self.expr = expr
         # add key with expression
         Alias.aliases[name] = expr
-            
+
     # function __str__
 
     def __str__(self):
         return self.expr
 
-    
+
 #
 # Function get_alias
 #
+
 
 def get_alias(alias):
     r"""Find an alias value with the given key.
@@ -138,8 +132,8 @@ def get_alias(alias):
     Examples
     --------
 
-    >>> alias_value = get_alias('atr')
-    >>> alias_value = get_alias('hc')
+    >>> alias_value = get_alias("atr")
+    >>> alias_value = get_alias("hc")
 
     """
     if alias in Alias.aliases:

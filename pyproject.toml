@@ -1,0 +1,272 @@
+[project]
+name = "alphapy"
+version = "2.5.0"
+description = "AlphaPy: A Machine Learning Pipeline for Speculators"
+authors = [
+    { name = "Robert D. Scott II", email = "scottfree.analytics@scottfreellc.com" },
+    { name = "Mark Conway", email = "scottfree.analytics@scottfreellc.com" }
+]
+maintainers = [
+    { name = "ScottFree LLC", email = "scottfree.analytics@scottfreellc.com" }
+]
+requires-python = ">=3.11,<3.14"
+readme = "README.rst"
+license = { text = "Apache License, Version 2.0" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: Apache Software License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "arrow>=1.3.0",
+    "bokeh>=3.7.0",
+    "category_encoders>=2.6.0",
+    "iexfinance>=0.5.0",
+    "imbalanced-learn>=0.12.0",
+    "ipython>=8.18.0",
+    "matplotlib>=3.9.0",
+    "numpy>=2.0.0",
+    "pandas>=2.2.0",
+    "pandas-datareader>=0.10.0",
+    "pyyaml>=6.0.0",
+    "scikit-learn>=1.5.0",
+    "scipy>=1.13.0",
+    "seaborn>=0.13.0",
+    "joblib>=1.4.0",
+    "scikeras>=0.13.0",
+    "pyfolio-reloaded>=0.9.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.8.0",
+    "black>=24.0.0",
+    "mypy>=1.11.0",
+    "sphinx>=8.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-rtd-dark-mode>=1.3.0",
+    "types-requests>=2.32.4.20250809",
+    "types-pyyaml>=6.0.12.20250809",
+    "coverage-badge>=1.1.0",
+]
+test = [
+    "pytest>=8.3.0",
+    "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+docs = [
+    "sphinx>=8.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-rtd-dark-mode>=1.3.0",
+]
+ml-extras = [
+    "xgboost>=2.1.0",
+    "lightgbm>=4.5.0",
+    "catboost>=1.2.0",
+]
+tensorflow = [
+    "tensorflow>=2.20.0",  # TensorFlow with Python 3.13 support and Keras included
+    "keras>=3.0.0",  # Keras 3 for multi-backend support
+]
+
+[project.scripts]
+alphapy = "alphapy.__main__:main"
+mflow = "alphapy.market_flow:main"
+sflow = "alphapy.sport_flow:main"
+
+[project.urls]
+Homepage = "https://github.com/ScottFreeLLC/AlphaPy"
+Repository = "https://github.com/ScottFreeLLC/AlphaPy"
+Documentation = "http://alphapy.readthedocs.io/en/latest/"
+Issues = "https://github.com/ScottFreeLLC/AlphaPy/issues"
+Twitter = "https://twitter.com/_AlphaPy_"
+
+[tool.uv]
+# No overrides needed - using pyfolio-reloaded from PyPI
+
+[build-system]
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["alphapy"]
+
+[tool.hatch.build]
+exclude = [
+    "docs/*",
+    "images/*",
+    ".github/*",
+    "*.gif",
+    "*.png",
+    "*.jpg",
+    "dist/*",
+    "build/*",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "*.pyc",
+    "*.log",
+    ".DS_Store",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+asyncio_mode = "auto"
+markers = [
+    "slow: Slow running tests",
+    "unit: Unit tests without external dependencies",
+    "integration: Integration tests with external dependencies",
+]
+addopts = "-v --tb=short --strict-markers -ra"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+indent-width = 4
+respect-gitignore = true
+extend-exclude = [
+    "__pycache__",
+    ".pytest_cache",
+    "build",
+    "dist",
+    ".venv",
+    ".env",
+    "htmlcov",
+    "docs/_build",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "C4",  # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+    "SIM", # flake8-simplify
+    "RUF", # Ruff-specific rules
+    "PD",  # pandas-vet (ML/data science best practices)
+    "NPY", # NumPy-specific rules
+]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "E741",   # Ambiguous variable name (allow single-letter vars like X, y in ML)
+    "B008",   # Do not perform function calls in argument defaults
+    "B017",   # Assert raises on Exception - sometimes needed for testing  
+    "B007",   # Unused loop control variable (common in range iterations)
+    "N803",   # Argument name should be lowercase (allow ML conventions like X, y)
+    "N806",   # Variable in function should be lowercase (allow ML conventions like X_train, y_test)
+    "N813",   # Camelcase imported as lowercase (allow sklearn import patterns)
+    "N999",   # Invalid module name (allow financial/ML naming patterns)
+    "UP031",  # Use format specifiers instead of percent format (legacy codebase)
+    "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+    "RUF013", # PEP 484 prohibits implicit Optional
+    "PD002",  # Use of inplace=True (common in data preprocessing)
+    "PD003",  # Use of .is_null() (pandas pattern)
+    "PD008",  # Use of .at[] (pandas accessor pattern)
+    "PD010",  # Use of pivot/unstack (common in financial data)
+    "PD011",  # Use of .values (pandas to numpy conversion)  
+    "PD013",  # Use of stack/unstack (financial time series patterns)
+    "PD901",  # Avoid using the generic variable name `df` for DataFrames
+    "A003",   # Class attribute shadows builtin (allow common ML attribute names)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401", "F841", "N802", "N803", "N806"]  # Allow unused imports, variables, and ML naming in tests
+"docs/conf.py" = ["A001", "E402"]  # Allow shadowing builtins and imports not at top
+"alphapy/plots.py" = ["N802", "N806", "E402"]  # Allow plotting variable conventions and conditional imports
+"alphapy/*flow.py" = ["N803", "N806", "E402"]  # Allow ML conventions and imports after docstring prints
+"alphapy/optimize.py" = ["N803", "N806"]  # Allow hyperparameter optimization conventions
+"alphapy/features.py" = ["N803", "N806"]  # Allow feature engineering conventions
+"alphapy/data.py" = ["E402"]  # Allow conditional imports for optional dependencies
+
+[tool.ruff.lint.isort]
+known-first-party = ["alphapy"]
+force-single-line = false
+combine-as-imports = true
+split-on-trailing-comma = true
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_generics = false
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.black]
+line-length = 120
+target-version = ["py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.coverage.run]
+source = ["alphapy"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if False:",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "docs", "build", "dist"]
+skips = ["B101", "B601"]  # Skip assert_used and shell_injection for ML code
+confidence = "medium"
+severity = "medium"
+
+[tool.bandit.assert_used]
+skips = ["**/test_*.py", "**/tests/*.py"]

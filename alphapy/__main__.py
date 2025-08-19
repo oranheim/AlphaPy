@@ -23,67 +23,61 @@
 
 
 #
-# Suppress Warnings
-#
-
-import warnings
-warnings.simplefilter(action='ignore', category=DeprecationWarning)
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-
-#
 # Imports
 #
 
-print(__doc__)
+import argparse
+import logging
+import os
+import warnings
 
-from alphapy.data import get_data
-from alphapy.data import sample_data
-from alphapy.data import shuffle_data
-from alphapy.estimators import get_estimators
-from alphapy.estimators import scorers
-from alphapy.features import apply_transforms
-from alphapy.features import create_crosstabs
-from alphapy.features import create_features
-from alphapy.features import create_interactions
-from alphapy.features import drop_features
-from alphapy.features import remove_lv_features
-from alphapy.features import save_features
-from alphapy.features import select_features
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+from alphapy.data import get_data, sample_data, shuffle_data
+from alphapy.estimators import get_estimators, scorers
+from alphapy.features import (
+    apply_transforms,
+    create_crosstabs,
+    create_features,
+    create_interactions,
+    drop_features,
+    remove_lv_features,
+    save_features,
+    select_features,
+)
 from alphapy.frame import write_frame
-from alphapy.globals import CSEP, PSEP, SSEP, USEP
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import WILDCARD
-from alphapy.model import first_fit
-from alphapy.model import generate_metrics
-from alphapy.model import get_model_config
-from alphapy.model import load_feature_map
-from alphapy.model import load_predictor
-from alphapy.model import make_predictions
-from alphapy.model import Model
-from alphapy.model import predict_best
-from alphapy.model import predict_blend
-from alphapy.model import save_model
-from alphapy.model import save_predictions
-from alphapy.optimize import hyper_grid_search
-from alphapy.optimize import rfecv_search
+from alphapy.globals import SSEP, USEP, ModelType, Partition
+from alphapy.model import (
+    Model,
+    first_fit,
+    generate_metrics,
+    get_model_config,
+    load_feature_map,
+    load_predictor,
+    make_predictions,
+    predict_best,
+    predict_blend,
+    save_model,
+    save_predictions,
+)
+from alphapy.optimize import hyper_grid_search, rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import get_datestamp
 
-import argparse
-from datetime import datetime
-import logging
-import numpy as np
-import os
-import pandas as pd
-from sklearn.model_selection import train_test_split
-import sys
+#
+# Suppress Warnings
+#
 
+warnings.simplefilter(action="ignore", category=DeprecationWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 #
 # Initialize logger
 #
+
+print(__doc__)
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +85,7 @@ logger = logging.getLogger(__name__)
 #
 # Function training_pipeline
 #
+
 
 def training_pipeline(model):
     r"""AlphaPy Training Pipeline
@@ -117,20 +112,20 @@ def training_pipeline(model):
 
     # Unpack the model specifications
 
-    calibration = model.specs['calibration']
-    directory = model.specs['directory']
-    drop = model.specs['drop']
-    extension = model.specs['extension']
-    feature_selection = model.specs['feature_selection']
-    grid_search = model.specs['grid_search']
-    model_type = model.specs['model_type']
-    rfe = model.specs['rfe']
-    sampling = model.specs['sampling']
-    scorer = model.specs['scorer']
-    seed = model.specs['seed']
-    separator = model.specs['separator']
-    split = model.specs['split']
-    target = model.specs['target']
+    calibration = model.specs["calibration"]
+    directory = model.specs["directory"]
+    drop = model.specs["drop"]
+    extension = model.specs["extension"]
+    feature_selection = model.specs["feature_selection"]
+    grid_search = model.specs["grid_search"]
+    model_type = model.specs["model_type"]
+    rfe = model.specs["rfe"]
+    sampling = model.specs["sampling"]
+    scorer = model.specs["scorer"]
+    seed = model.specs["seed"]
+    separator = model.specs["separator"]
+    split = model.specs["split"]
+    target = model.specs["target"]
 
     # Get train and test data
 
@@ -142,8 +137,7 @@ def training_pipeline(model):
     if X_test.empty:
         logger.info("No Test Data Found")
         logger.info("Splitting Training Data")
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=split, random_state=seed)
+        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=split, random_state=seed)
 
     # Determine if there are any test labels
 
@@ -174,8 +168,9 @@ def training_pipeline(model):
         split_point = X_train.shape[0]
         X_all = pd.concat([X_train, X_test])
     else:
-        raise IndexError("The number of training and test columns [%d, %d] must match." %
-                         (X_train.shape[1], X_test.shape[1]))
+        raise IndexError(
+            "The number of training and test columns [%d, %d] must match." % (X_train.shape[1], X_test.shape[1])
+        )
 
     # Apply transforms to the feature matrix
     X_all = apply_transforms(model, X_all)
@@ -186,7 +181,7 @@ def training_pipeline(model):
     # Save the train and test files with extracted and dropped features
 
     datestamp = get_datestamp()
-    data_dir = SSEP.join([directory, 'input'])
+    data_dir = SSEP.join([directory, "input"])
     df_train = X_all.iloc[:split_point, :]
     df_train[target] = y_train
     output_file = USEP.join([model.train_file, datestamp])
@@ -236,7 +231,7 @@ def training_pipeline(model):
     if feature_selection:
         model = select_features(model)
 
-    # Get the available classifiers and regressors 
+    # Get the available classifiers and regressors
 
     logger.info("Getting All Estimators")
     estimators = get_estimators(model)
@@ -244,7 +239,7 @@ def training_pipeline(model):
     # Get the available scorers
 
     if scorer not in scorers:
-        raise KeyError("Scorer function %s not found" % scorer)
+        raise KeyError(f"Scorer function {scorer} not found")
 
     # Model Selection
 
@@ -296,7 +291,7 @@ def training_pipeline(model):
         generate_plots(model, Partition.test)
 
     # Save best features and predictions
-    save_model(model, 'BEST', Partition.test)
+    save_model(model, "BEST", Partition.test)
 
     # Return the model
     return model
@@ -305,6 +300,7 @@ def training_pipeline(model):
 #
 # Function prediction_pipeline
 #
+
 
 def prediction_pipeline(model):
     r"""AlphaPy Prediction Pipeline
@@ -329,11 +325,11 @@ def prediction_pipeline(model):
 
     # Unpack the model specifications
 
-    directory = model.specs['directory']
-    drop = model.specs['drop']
-    feature_selection = model.specs['feature_selection']
-    model_type = model.specs['model_type']
-    rfe = model.specs['rfe']
+    directory = model.specs["directory"]
+    drop = model.specs["drop"]
+    feature_selection = model.specs["feature_selection"]
+    model_type = model.specs["model_type"]
+    rfe = model.specs["rfe"]
 
     # Get all data. We need original train and test for encodings.
 
@@ -371,10 +367,10 @@ def prediction_pipeline(model):
     if feature_selection:
         logger.info("Getting Univariate Support")
         try:
-            support = model.feature_map['uni_support']
+            support = model.feature_map["uni_support"]
             X_all = X_all[:, support]
             logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
+        except KeyError:
             logger.info("No Univariate Support")
 
     # Load the RFE support vector, if any
@@ -382,22 +378,22 @@ def prediction_pipeline(model):
     if rfe:
         logger.info("Getting RFE Support")
         try:
-            support = model.feature_map['rfe_support']
+            support = model.feature_map["rfe_support"]
             X_all = X_all[:, support]
             logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
+        except KeyError:
             logger.info("No RFE Support")
 
     # Load predictor
     predictor = load_predictor(directory)
 
     # Make predictions
-    
+
     logger.info("Making Predictions")
-    tag = 'BEST'
+    tag = "BEST"
     model.preds[(tag, partition)] = predictor.predict(X_all)
     if model_type == ModelType.classification:
-        model.probas[(tag, partition)]  = predictor.predict_proba(X_all)[:, 1]
+        model.probas[(tag, partition)] = predictor.predict_proba(X_all)[:, 1]
 
     # Save predictions
     save_predictions(model, tag, partition)
@@ -409,6 +405,7 @@ def prediction_pipeline(model):
 #
 # Function main_pipeline
 #
+
 
 def main_pipeline(model):
     r"""AlphaPy Main Pipeline
@@ -426,14 +423,11 @@ def main_pipeline(model):
     """
 
     # Extract any model specifications
-    predict_mode = model.specs['predict_mode']
+    predict_mode = model.specs["predict_mode"]
 
     # Prediction Only or Calibration
 
-    if predict_mode:
-        model = prediction_pipeline(model)
-    else:
-        model = training_pipeline(model)
+    model = prediction_pipeline(model) if predict_mode else training_pipeline(model)
 
     # Return the completed model
     return model
@@ -442,6 +436,7 @@ def main_pipeline(model):
 #
 # Function main
 #
+
 
 def main(args=None):
     r"""AlphaPy Main Program
@@ -458,11 +453,14 @@ def main(args=None):
 
     # Logging
 
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="alphapy.log", filemode='a', level=logging.INFO,
-                        datefmt='%m/%d/%y %H:%M:%S')
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
-                                  datefmt='%m/%d/%y %H:%M:%S')
+    logging.basicConfig(
+        format="[%(asctime)s] %(levelname)s\t%(message)s",
+        filename="alphapy.log",
+        filemode="a",
+        level=logging.INFO,
+        datefmt="%m/%d/%y %H:%M:%S",
+    )
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s", datefmt="%m/%d/%y %H:%M:%S")
     console = logging.StreamHandler()
     console.setFormatter(formatter)
     console.setLevel(logging.INFO)
@@ -470,29 +468,29 @@ def main(args=None):
 
     # Start the pipeline
 
-    logger.info('*'*80)
+    logger.info("*" * 80)
     logger.info("AlphaPy Start")
-    logger.info('*'*80)
+    logger.info("*" * 80)
 
     # Argument Parsing
 
     parser = argparse.ArgumentParser(description="AlphaPy Parser")
     parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    parser.add_argument("--predict", dest="predict_mode", action="store_true")
+    parser.add_argument("--train", dest="predict_mode", action="store_false")
     parser.set_defaults(predict_mode=False)
     args = parser.parse_args()
 
     # Read configuration file
 
     specs = get_model_config()
-    specs['predict_mode'] = args.predict_mode
+    specs["predict_mode"] = args.predict_mode
 
     # Create directories if necessary
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
+    output_dirs = ["config", "data", "input", "model", "output", "plots"]
     for od in output_dirs:
-        output_dir = SSEP.join([specs['directory'], od])
+        output_dir = SSEP.join([specs["directory"], od])
         if not os.path.exists(output_dir):
             logger.info("Creating directory %s", output_dir)
             os.makedirs(output_dir)
@@ -509,9 +507,9 @@ def main(args=None):
 
     # Complete the pipeline
 
-    logger.info('*'*80)
+    logger.info("*" * 80)
     logger.info("AlphaPy End")
-    logger.info('*'*80)
+    logger.info("*" * 80)
 
 
 #

@@ -26,22 +26,17 @@
 # Imports
 #
 
-from alphapy.frame import Frame
-from alphapy.frame import frame_name
-from alphapy.frame import read_frame
-from alphapy.frame import write_frame
-from alphapy.globals import Orders
-from alphapy.globals import BSEP, SSEP
-from alphapy.variables import vexec
-from alphapy.space import Space
-from alphapy.portfolio import Trade
-from alphapy.utilities import most_recent_file
-
 import logging
-import numbers
+
 import pandas as pd
 from pandas import DataFrame
 
+from alphapy.frame import Frame, frame_name, read_frame, write_frame
+from alphapy.globals import SSEP, Orders
+from alphapy.portfolio import Trade
+from alphapy.space import Space
+from alphapy.utilities import most_recent_file
+from alphapy.variables import vexec
 
 #
 # Initialize logger
@@ -54,7 +49,8 @@ logger = logging.getLogger(__name__)
 # Class System
 #
 
-class System(object):
+
+class System:
     """Create a new system. All systems are stored in
     ``System.systems``. Duplicate names are not allowed.
 
@@ -82,41 +78,27 @@ class System(object):
 
     Examples
     --------
-    
-    >>> System('closer', hc, lc)
+
+    >>> System("closer", hc, lc)
 
     """
 
     # class variable to track all systems
 
-    systems = {}
+    systems: dict[str, "System"] = {}
 
     # __new__
-    
-    def __new__(cls,
-                name,
-                longentry,
-                shortentry = None,
-                longexit = None,
-                shortexit = None,
-                holdperiod = 0,
-                scale = False):
+
+    def __new__(cls, name, longentry, shortentry=None, longexit=None, shortexit=None, holdperiod=0, scale=False):
         # create system name
         if name not in System.systems:
-            return super(System, cls).__new__(cls)
+            return super().__new__(cls)
         else:
             logger.info("System %s already exists", name)
-    
+
     # __init__
-    
-    def __init__(self,
-                 name,
-                 longentry,
-                 shortentry = None,
-                 longexit = None,
-                 shortexit = None,
-                 holdperiod = 0,
-                 scale = False):
+
+    def __init__(self, name, longentry, shortentry=None, longexit=None, shortexit=None, holdperiod=0, scale=False):
         # initialization
         self.name = name
         self.longentry = longentry
@@ -127,7 +109,7 @@ class System(object):
         self.scale = scale
         # add system to systems list
         System.systems[name] = self
-        
+
     # __str__
 
     def __str__(self):
@@ -137,6 +119,7 @@ class System(object):
 #
 # Function trade_system
 #
+
 
 def trade_system(model, system, space, intraday, name, quantity):
     r"""Trade the given system.
@@ -170,9 +153,9 @@ def trade_system(model, system, space, intraday, name, quantity):
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    separator = model.specs["separator"]
 
     # Unpack the system parameters.
 
@@ -189,7 +172,7 @@ def trade_system(model, system, space, intraday, name, quantity):
     active_signals = [x for x in entries_and_exits if x is not None]
     use_model = False
     for signal in active_signals:
-        if any(x in signal for x in ['phigh', 'plow']):
+        if any(x in signal for x in ["phigh", "plow"]):
             use_model = True
 
     # Read in the price frame
@@ -199,14 +182,14 @@ def trade_system(model, system, space, intraday, name, quantity):
 
     if use_model:
         # get latest probabilities file
-        probs_dir = SSEP.join([directory, 'output'])
-        file_path = most_recent_file(probs_dir, 'probabilities*')
-        file_name = file_path.split(SSEP)[-1].split('.')[0]
+        probs_dir = SSEP.join([directory, "output"])
+        file_path = most_recent_file(probs_dir, "probabilities*")
+        file_name = file_path.split(SSEP)[-1].split(".")[0]
         # read the probabilities frame and trim the price frame
         probs_frame = read_frame(probs_dir, file_name, extension, separator)
-        pf = pf[-probs_frame.shape[0]:]
+        pf = pf[-probs_frame.shape[0] :]
         probs_frame.index = pf.index
-        probs_frame.columns = ['probability']
+        probs_frame.columns = ["probability"]
         # add probability column to price frame
         pf = pd.concat([pf, probs_frame], axis=1)
 
@@ -228,10 +211,10 @@ def trade_system(model, system, space, intraday, name, quantity):
 
     for dt, row in pf.iterrows():
         # get closing price
-        c = row['close']
+        c = row["close"]
         if intraday:
-            bar_number = row['bar_number']
-            end_of_day = row['end_of_day']            
+            row["bar_number"]
+            end_of_day = row["end_of_day"]
         # evaluate entry and exit conditions
         lerow = row[longentry] if longentry else None
         serow = row[shortentry] if shortentry else None
@@ -306,11 +289,8 @@ def trade_system(model, system, space, intraday, name, quantity):
 # Function run_system
 #
 
-def run_system(model,
-               system,
-               group,
-               intraday = False,
-               quantity = 1):
+
+def run_system(model, system, group, intraday=False, quantity=1):
     r"""Run a system for a given group, creating a trades frame.
 
     Parameters
@@ -338,9 +318,9 @@ def run_system(model,
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    separator = model.specs["separator"]
 
     # Extract the group information.
 
@@ -367,14 +347,13 @@ def run_system(model,
     if gtlist:
         tspace = Space(system_name, "trades", group.space.fractal)
         gtlist = sorted(gtlist, key=lambda x: x[0])
-        tf = DataFrame.from_dict(dict(gtlist), orient='index', columns=Trade.states)
+        tf = DataFrame.from_dict(dict(gtlist), orient="index", columns=Trade.states)
         tfname = frame_name(gname, tspace)
-        system_dir = SSEP.join([directory, 'systems'])
-        labels = ['date']
+        system_dir = SSEP.join([directory, "systems"])
+        labels = ["date"]
         if intraday:
-            labels.append('time')
-        write_frame(tf, system_dir, tfname, extension, separator,
-                    index=True, index_label=labels)
+            labels.append("time")
+        write_frame(tf, system_dir, tfname, extension, separator, index=True, index_label=labels)
         del tspace
     else:
         logger.info("No trades were found")

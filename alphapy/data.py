@@ -26,49 +26,36 @@
 # Imports
 #
 
-from alphapy.frame import Frame
-from alphapy.frame import frame_name
-from alphapy.frame import read_frame
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import SamplingMethod
-from alphapy.globals import WILDCARD
-from alphapy.space import Space
-
-import arrow
-from datetime import datetime
-from datetime import timedelta
-from iexfinance.stocks import get_historical_data
-from iexfinance.stocks import get_historical_intraday
-from imblearn.combine import SMOTEENN
-from imblearn.combine import SMOTETomek
-import imblearn.ensemble
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import ClusterCentroids
-from imblearn.under_sampling import CondensedNearestNeighbour
-from imblearn.under_sampling import EditedNearestNeighbours
-from imblearn.under_sampling import InstanceHardnessThreshold
-from imblearn.under_sampling import NearMiss
-from imblearn.under_sampling import NeighbourhoodCleaningRule
-from imblearn.under_sampling import OneSidedSelection
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.under_sampling import RepeatedEditedNearestNeighbours
-from imblearn.under_sampling import TomekLinks
 import logging
 import math
-import numpy as np
-import os
-import pandas as pd
-pd.core.common.is_list_like = pd.api.types.is_list_like
-import pandas_datareader.data as web
 import re
-import requests
-from scipy import sparse
-from sklearn.preprocessing import LabelEncoder
 import sys
+from datetime import datetime
+from typing import Any
 
+import arrow
+import numpy as np
+import pandas as pd
+import pandas_datareader.data as web
+import requests
+from iexfinance.stocks import get_historical_data, get_historical_intraday
+from imblearn.combine import SMOTEENN, SMOTETomek
+from imblearn.ensemble import EasyEnsembleClassifier
+from imblearn.over_sampling import SMOTE, RandomOverSampler
+from imblearn.under_sampling import (
+    ClusterCentroids,
+    NearMiss,
+    NeighbourhoodCleaningRule,
+    RandomUnderSampler,
+    TomekLinks,
+)
+from sklearn.preprocessing import LabelEncoder
+
+from alphapy.frame import Frame, frame_name, read_frame
+from alphapy.globals import SSEP, WILDCARD, ModelType, SamplingMethod, datasets
+from alphapy.space import Space
+
+pd.core.common.is_list_like = pd.api.types.is_list_like
 
 #
 # Initialize logger
@@ -81,7 +68,8 @@ logger = logging.getLogger(__name__)
 # Function get_data
 #
 
-def get_data(model, partition):
+
+def get_data(model: Any, partition: Any) -> tuple[pd.DataFrame, pd.Series | None]:
     r"""Get data for the given partition.
 
     Parameters
@@ -104,12 +92,12 @@ def get_data(model, partition):
 
     # Extract the model data
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    features = model.specs['features']
-    model_type = model.specs['model_type']
-    separator = model.specs['separator']
-    target = model.specs['target']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    features = model.specs["features"]
+    model_type = model.specs["model_type"]
+    separator = model.specs["separator"]
+    target = model.specs["target"]
 
     # Initialize X and y
 
@@ -119,7 +107,7 @@ def get_data(model, partition):
     # Read in the file
 
     filename = datasets[partition]
-    input_dir = SSEP.join([directory, 'input'])
+    input_dir = SSEP.join([directory, "input"])
     df = read_frame(input_dir, filename, extension, separator)
 
     # Get features and target
@@ -144,10 +132,7 @@ def get_data(model, partition):
         else:
             logger.info("Target %s not found in %s", target, partition)
         # Extract features
-        if features == WILDCARD:
-            X = df
-        else:
-            X = df[features]
+        X = df if features == WILDCARD else df[features]
 
     # Labels are returned usually only for training data
     return X, y
@@ -157,7 +142,8 @@ def get_data(model, partition):
 # Function shuffle_data
 #
 
-def shuffle_data(model):
+
+def shuffle_data(model: Any) -> Any:
     r"""Randomly shuffle the training data.
 
     Parameters
@@ -174,8 +160,8 @@ def shuffle_data(model):
 
     # Extract model parameters.
 
-    seed = model.specs['seed']
-    shuffle = model.specs['shuffle']
+    seed = model.specs["seed"]
+    shuffle = model.specs["shuffle"]
 
     # Extract model data.
 
@@ -186,8 +172,8 @@ def shuffle_data(model):
 
     if shuffle:
         logger.info("Shuffling Training Data")
-        np.random.seed(seed)
-        new_indices = np.random.permutation(y_train.size)
+        rng = np.random.default_rng(seed)
+        new_indices = rng.permutation(y_train.size)
         model.X_train = X_train[new_indices]
         model.y_train = y_train[new_indices]
     else:
@@ -200,7 +186,8 @@ def shuffle_data(model):
 # Function sample_data
 #
 
-def sample_data(model):
+
+def sample_data(model: Any) -> Any:
     r"""Sample the training data.
 
     Sampling is configured in the ``model.yml`` file (data:sampling:method)
@@ -222,10 +209,10 @@ def sample_data(model):
 
     # Extract model parameters.
 
-    sampling_method = model.specs['sampling_method']
-    sampling_ratio = model.specs['sampling_ratio']
-    target = model.specs['target']
-    target_value = model.specs['target_value']
+    sampling_method = model.specs["sampling_method"]
+    sampling_ratio = model.specs["sampling_ratio"]
+    target = model.specs["target"]
+    target_value = model.specs["target_value"]
 
     # Extract model data.
 
@@ -241,8 +228,7 @@ def sample_data(model):
         target_index = np.where(uv == target_value)[0][0]
         nontarget_index = np.where(uv != target_value)[0][0]
         ratio = (uc[nontarget_index] / uc[target_index]) - 1.0
-    logger.info("Sampling Ratio for target %s [%r]: %f",
-                target, target_value, ratio)
+    logger.info("Sampling Ratio for target %s [%r]: %f", target, target_value, ratio)
 
     # Choose the sampling method.
 
@@ -259,21 +245,23 @@ def sample_data(model):
     elif sampling_method == SamplingMethod.over_random:
         sampler = RandomOverSampler(ratio=ratio)
     elif sampling_method == SamplingMethod.over_smote:
-        sampler = SMOTE(ratio=ratio, kind='regular')
+        sampler = SMOTE(ratio=ratio, kind="regular")
     elif sampling_method == SamplingMethod.over_smoteb:
-        sampler = SMOTE(ratio=ratio, kind='borderline1')
+        sampler = SMOTE(ratio=ratio, kind="borderline1")
     elif sampling_method == SamplingMethod.over_smotesv:
-        sampler = SMOTE(ratio=ratio, kind='svm')
+        sampler = SMOTE(ratio=ratio, kind="svm")
     elif sampling_method == SamplingMethod.overunder_smote_tomek:
         sampler = SMOTETomek(ratio=ratio)
     elif sampling_method == SamplingMethod.overunder_smote_enn:
         sampler = SMOTEENN(ratio=ratio)
     elif sampling_method == SamplingMethod.ensemble_bc:
-        sampler = BalanceCascade()
+        # BalanceCascade is deprecated, using EasyEnsembleClassifier instead
+        logger.warning("BalanceCascade is deprecated, using EasyEnsembleClassifier")
+        sampler = EasyEnsembleClassifier(n_estimators=10, random_state=42)
     elif sampling_method == SamplingMethod.ensemble_easy:
-        sampler = EasyEnsemble()
+        sampler = EasyEnsembleClassifier(n_estimators=10, random_state=42)
     else:
-        raise ValueError("Unknown Sampling Method %s" % sampling_method)
+        raise ValueError(f"Unknown Sampling Method {sampling_method}")
 
     # Get the newly sampled features.
     try:
@@ -296,7 +284,8 @@ def sample_data(model):
 # Function convert_data
 #
 
-def convert_data(df, index_column, intraday_data):
+
+def convert_data(df: pd.DataFrame, index_column: str, intraday_data: bool) -> pd.DataFrame:
     r"""Convert the market data frame to canonical format.
 
     Parameters
@@ -316,26 +305,22 @@ def convert_data(df, index_column, intraday_data):
     """
 
     # Standardize column names
-    df = df.rename(columns = lambda x: x.lower().replace(' ',''))
+    df = df.rename(columns=lambda x: x.lower().replace(" ", ""))
 
     # Create the time/date index if not already done
 
     if not isinstance(df.index, pd.DatetimeIndex):
         df.reset_index(inplace=True)
-        if intraday_data:
-            dt_column = df['date'] + ' ' + df['time']
-        else:
-            dt_column = df['date']
+        dt_column = df["date"] + " " + df["time"] if intraday_data else df["date"]
         df[index_column] = pd.to_datetime(dt_column)
-        df.set_index(pd.DatetimeIndex(df[index_column]),
-                     drop=True, inplace=True)
-        del df['date']
+        df.set_index(pd.DatetimeIndex(df[index_column]), drop=True, inplace=True)
+        del df["date"]
         if intraday_data:
-            del df['time']
+            del df["time"]
 
     # Make the remaining columns floating point
 
-    cols_float = ['open', 'high', 'low', 'close', 'volume']
+    cols_float = ["open", "high", "low", "close", "volume"]
     df[cols_float] = df[cols_float].astype(float)
 
     # Order the frame by increasing date if necessary
@@ -348,7 +333,8 @@ def convert_data(df, index_column, intraday_data):
 # Function enhance_intraday_data
 #
 
-def enhance_intraday_data(df):
+
+def enhance_intraday_data(df: pd.DataFrame) -> pd.DataFrame:
     r"""Add columns to the intraday dataframe.
 
     Parameters
@@ -365,20 +351,20 @@ def enhance_intraday_data(df):
 
     # Group by date first
 
-    df['date'] = df.index.strftime('%Y-%m-%d')
-    date_group = df.groupby('date')
+    df["date"] = df.index.strftime("%Y-%m-%d")
+    date_group = df.groupby("date")
 
     # Number the intraday bars
-    df['bar_number'] = date_group.cumcount()
+    df["bar_number"] = date_group.cumcount()
 
     # Mark the end of the trading day
 
-    df['end_of_day'] = False
-    df.loc[date_group.tail(1).index, 'end_of_day'] = True
+    df["end_of_day"] = False
+    df.loc[date_group.tail(1).index, "end_of_day"] = True
 
     # Return the enhanced frame
 
-    del df['date']
+    del df["date"]
     return df
 
 
@@ -386,7 +372,8 @@ def enhance_intraday_data(df):
 # Function get_google_intraday_data
 #
 
-def get_google_intraday_data(symbol, lookback_period, fractal):
+
+def get_google_intraday_data(symbol: str, lookback_period: int, fractal: str) -> pd.DataFrame | None:
     r"""Get Google Finance intraday data.
 
     We get intraday data from the Google Finance API, even though
@@ -415,7 +402,7 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
     # Initialize data frame
     df = pd.DataFrame()
     # Convert fractal to interval
-    interval = 60 * int(re.findall('\d+', fractal)[0])
+    interval = 60 * int(re.findall(r"\d+", fractal)[0])
     # Google has a 50-day limit
     max_days = 50
     if lookback_period > max_days:
@@ -424,14 +411,14 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
     toffset = 7
     line_length = 6
     # Make the request to Google
-    base_url = 'https://finance.google.com/finance/getprices?q={}&i={}&p={}d&f=d,o,h,l,c,v'
+    base_url = "https://finance.google.com/finance/getprices?q={}&i={}&p={}d&f=d,o,h,l,c,v"
     url = base_url.format(symbol, interval, lookback_period)
     response = requests.get(url)
     # Process the response
-    text = response.text.split('\n')
+    text = response.text.split("\n")
     records = []
     for line in text[toffset:]:
-        items = line.split(',')
+        items = line.split(",")
         if len(items) == line_length:
             dt_item = items[0]
             close_item = items[1]
@@ -439,19 +426,19 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
             low_item = items[3]
             open_item = items[4]
             volume_item = items[5]
-            if dt_item[0] == 'a':
+            if dt_item[0] == "a":
                 day_item = float(dt_item[1:])
-                offset = 0
+                offset = 0.0
             else:
                 offset = float(dt_item)
             dt = datetime.fromtimestamp(day_item + (interval * offset))
             dt = pd.to_datetime(dt)
-            dt_date = dt.strftime('%Y-%m-%d')
-            dt_time = dt.strftime('%H:%M:%S')
+            dt_date = dt.strftime("%Y-%m-%d")
+            dt_time = dt.strftime("%H:%M:%S")
             record = (dt_date, dt_time, open_item, high_item, low_item, close_item, volume_item)
             records.append(record)
     # Create data frame
-    cols = ['date', 'time', 'open', 'high', 'low', 'close', 'volume']
+    cols = ["date", "time", "open", "high", "low", "close", "volume"]
     df = pd.DataFrame.from_records(records, columns=cols)
     # Return the dataframe
     return df
@@ -461,8 +448,17 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
 # Function get_google_data
 #
 
-def get_google_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
+
+def get_google_data(
+    schema: str,
+    subschema: str,
+    symbol: str,
+    intraday_data: bool,
+    data_fractal: str,
+    from_date: str,
+    to_date: str,
+    lookback_period: int,
+) -> pd.DataFrame | None:
     r"""Get data from Google.
 
     Parameters
@@ -506,8 +502,17 @@ def get_google_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_iex_data
 #
 
-def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
-                 from_date, to_date, lookback_period):
+
+def get_iex_data(
+    schema: str,
+    subschema: str,
+    symbol: str,
+    intraday_data: bool,
+    data_fractal: str,
+    from_date: str,
+    to_date: str,
+    lookback_period: int,
+) -> pd.DataFrame | None:
     r"""Get data from IEX.
 
     Parameters
@@ -543,7 +548,7 @@ def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
         # use iexfinance function to get intraday data for each date
         df = pd.DataFrame()
         for d in pd.date_range(from_date, to_date):
-            dstr = d.strftime('%Y-%m-%d')
+            dstr = d.strftime("%Y-%m-%d")
             logger.info("%s Data for %s", symbol, dstr)
             try:
                 df1 = get_historical_intraday(symbol, d, output_format="pandas")
@@ -553,16 +558,16 @@ def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
                     df = df.append(df1)
                 else:
                     logger.info("%s: No Trading Data for %s", symbol, dstr)
-            except:
-                iex_error = "*** IEX Intraday Data Error (check Quota) ***"
+            except (requests.exceptions.RequestException, ValueError, KeyError, AttributeError) as e:
+                iex_error = f"*** IEX Intraday Data Error (check Quota): {e} ***"
                 logger.error(iex_error)
                 sys.exit(iex_error)
     else:
         # use iexfinance function for historical daily data
         try:
             df = get_historical_data(symbol, from_date, to_date, output_format="pandas")
-        except:
-            iex_error = "*** IEX Daily Data Error (check Quota) ***"
+        except (requests.exceptions.RequestException, ValueError, KeyError, AttributeError) as e:
+            iex_error = f"*** IEX Daily Data Error (check Quota): {e} ***"
             logger.error(iex_error)
             sys.exit(iex_error)
     return df
@@ -572,8 +577,17 @@ def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_pandas_data
 #
 
-def get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
+
+def get_pandas_data(
+    schema: str,
+    subschema: str,
+    symbol: str,
+    intraday_data: bool,
+    data_fractal: str,
+    from_date: str,
+    to_date: str,
+    lookback_period: int,
+) -> pd.DataFrame | None:
     r"""Get Pandas Web Reader data.
 
     Parameters
@@ -606,9 +620,9 @@ def get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
 
     try:
         df = web.DataReader(symbol, schema, from_date, to_date)
-    except:
+    except (requests.exceptions.RequestException, ValueError, KeyError, AttributeError) as e:
         df = pd.DataFrame()
-        logger.info("Could not retrieve %s data with pandas-datareader", symbol.upper())
+        logger.info("Could not retrieve %s data with pandas-datareader: %s", symbol.upper(), e)
 
     return df
 
@@ -617,8 +631,17 @@ def get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_quandl_data
 #
 
-def get_quandl_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
+
+def get_quandl_data(
+    schema: str,
+    subschema: str,
+    symbol: str,
+    intraday_data: bool,
+    data_fractal: str,
+    from_date: str,
+    to_date: str,
+    lookback_period: int,
+) -> pd.DataFrame | None:
     r"""Get Quandl data.
 
     Parameters
@@ -653,8 +676,7 @@ def get_quandl_data(schema, subschema, symbol, intraday_data, data_fractal,
 
     # Call the Pandas Web data reader.
 
-    df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
-                         from_date, to_date, lookback_period)
+    df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal, from_date, to_date, lookback_period)
 
     return df
 
@@ -663,8 +685,17 @@ def get_quandl_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_yahoo_data
 #
 
-def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
+
+def get_yahoo_data(
+    schema: str,
+    subschema: str,
+    symbol: str,
+    intraday_data: bool,
+    data_fractal: str,
+    from_date: str,
+    to_date: str,
+    lookback_period: int,
+) -> pd.DataFrame | None:
     r"""Get Yahoo data.
 
     Parameters
@@ -695,31 +726,32 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
 
     df = pd.DataFrame()
     if intraday_data:
-        url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
-        data_range = ''.join([str(lookback_period), 'd'])
-        interval = int(''.join(filter(str.isdigit, data_fractal)))
-        fractal = re.sub(r'\d+', '', data_fractal)
-        mapper = {'H': 60, 'T': 1, 'min':1, 'S': 1./60}
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/"
+        data_range = "".join([str(lookback_period), "d"])
+        interval = int("".join(filter(str.isdigit, data_fractal)))
+        fractal = re.sub(r"\d+", "", data_fractal)
+        mapper = {"H": 60, "T": 1, "min": 1, "S": 1.0 / 60}
         interval = math.ceil(interval * mapper[fractal])
-        data_interval = ''.join([str(interval), 'm'])
-        qualifiers = '{}?range={}&interval={}'.format(symbol, data_range, data_interval)
+        data_interval = "".join([str(interval), "m"])
+        qualifiers = f"{symbol}?range={data_range}&interval={data_interval}"
         request = url + qualifiers
         logger.info(request)
         response = requests.get(request)
-        response_json = response.json()['chart']
-        if response_json['result']:
-            body = response_json['result'][0]
-            dt = pd.Series(map(lambda x: arrow.get(x).to('EST').datetime.replace(tzinfo=None), body['timestamp']), name='dt')
-            df = pd.DataFrame(body['indicators']['quote'][0], index=dt)
-            df = df.loc[:, ('open', 'high', 'low', 'close', 'volume')]
+        response_json = response.json()["chart"]
+        if response_json["result"]:
+            body = response_json["result"][0]
+            dt = pd.Series((arrow.get(x).to("EST").datetime.replace(tzinfo=None) for x in body["timestamp"]), name="dt")
+            df = pd.DataFrame(body["indicators"]["quote"][0], index=dt)
+            df = df.loc[:, ("open", "high", "low", "close", "volume")]
         else:
             logger.info("Could not get data from %s", schema)
-            logger.info(response_json['error']['code'])
-            logger.info(response_json['error']['description'])
+            logger.info(response_json["error"]["code"])
+            logger.info(response_json["error"]["description"])
     else:
         # use pandas data reader
-        df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
-                             from_date, to_date, lookback_period)
+        df = get_pandas_data(
+            schema, subschema, symbol, intraday_data, data_fractal, from_date, to_date, lookback_period
+        )
 
     return df
 
@@ -728,18 +760,23 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Data Dispatch Tables
 #
 
-data_dispatch_table = {'google' : get_google_data,
-                       'iex'    : get_iex_data,
-                       'pandas' : get_pandas_data,
-                       'quandl' : get_quandl_data,
-                       'yahoo'  : get_yahoo_data}
+data_dispatch_table = {
+    "google": get_google_data,
+    "iex": get_iex_data,
+    "pandas": get_pandas_data,
+    "quandl": get_quandl_data,
+    "yahoo": get_yahoo_data,
+}
 
 
 #
 # Function get_market_data
 #
 
-def get_market_data(model, market_specs, group, lookback_period, intraday_data=False):
+
+def get_market_data(
+    model: Any, market_specs: dict[str, Any], group: Any, lookback_period: int, intraday_data: bool = False
+) -> Any:
     r"""Get data from an external feed.
 
     Parameters
@@ -764,14 +801,14 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     # Unpack market specifications
 
-    data_fractal = market_specs['data_fractal']
-    subschema = market_specs['subschema']
+    data_fractal = market_specs["data_fractal"]
+    subschema = market_specs["subschema"]
 
     # Unpack model specifications
 
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
+    directory = model.specs["directory"]
+    extension = model.specs["extension"]
+    separator = model.specs["separator"]
 
     # Unpack group elements
 
@@ -783,49 +820,41 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     if intraday_data:
         # intraday data (date and time)
-        logger.info("%s Intraday Data [%s] for %d periods",
-                    schema, data_fractal, lookback_period)
-        index_column = 'datetime'
+        logger.info("%s Intraday Data [%s] for %d periods", schema, data_fractal, lookback_period)
+        index_column = "datetime"
     else:
         # daily data or higher (date only)
-        logger.info("%s Daily Data [%s] for %d periods",
-                    schema, data_fractal, lookback_period)
-        index_column = 'date'
+        logger.info("%s Daily Data [%s] for %d periods", schema, data_fractal, lookback_period)
+        index_column = "date"
 
     # Get the data from the relevant feed
 
-    data_dir = SSEP.join([directory, 'data'])
+    data_dir = SSEP.join([directory, "data"])
     n_periods = 0
-    resample_data = True if fractal != data_fractal else False
+    resample_data = fractal != data_fractal
 
     # Date Arithmetic
 
-    to_date = pd.to_datetime('today')
-    from_date = to_date - pd.to_timedelta(lookback_period, unit='d')
-    to_date = to_date.strftime('%Y-%m-%d')
-    from_date = from_date.strftime('%Y-%m-%d')
+    to_date = pd.to_datetime("today")
+    from_date = to_date - pd.to_timedelta(lookback_period, unit="d")
+    to_date = to_date.strftime("%Y-%m-%d")
+    from_date = from_date.strftime("%Y-%m-%d")
 
     # Get the data from the specified data feed
 
     df = pd.DataFrame()
     for symbol in group.members:
-        logger.info("Getting %s data from %s to %s",
-                    symbol.upper(), from_date, to_date)
+        logger.info("Getting %s data from %s to %s", symbol.upper(), from_date, to_date)
         # Locate the data source
-        if schema == 'data':
+        if schema == "data":
             # local intraday or daily
             dspace = Space(gspace.subject, gspace.schema, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
             df = read_frame(data_dir, fname, extension, separator)
-        elif schema in data_dispatch_table.keys():
-            df = data_dispatch_table[schema](schema,
-                                             subschema,
-                                             symbol,
-                                             intraday_data,
-                                             data_fractal,
-                                             from_date,
-                                             to_date,
-                                             lookback_period)
+        elif schema in data_dispatch_table:
+            df = data_dispatch_table[schema](
+                schema, subschema, symbol, intraday_data, data_fractal, from_date, to_date, lookback_period
+            )
         else:
             logger.error("Unsupported Data Source: %s", schema)
         # Now that we have content, standardize the data
@@ -835,21 +864,16 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
             df = convert_data(df, index_column, intraday_data)
             # resample data and forward fill any NA values
             if resample_data:
-                df = df.resample(fractal).agg({'open'   : 'first',
-                                               'high'   : 'max',
-                                               'low'    : 'min',
-                                               'close'  : 'last',
-                                               'volume' : 'sum'})
-                df.dropna(axis=0, how='any', inplace=True)
-                logger.info("Rows after Resampling at %s: %d",
-                            fractal, len(df))
+                df = df.resample(fractal).agg(
+                    {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+                )
+                df.dropna(axis=0, how="any", inplace=True)
+                logger.info("Rows after Resampling at %s: %d", fractal, len(df))
             # add intraday columns if necessary
             if intraday_data:
                 df = enhance_intraday_data(df)
             # allocate global Frame
-            newf = Frame(symbol.lower(), gspace, df)
-            if newf is None:
-                logger.error("Could not allocate Frame for: %s", symbol.upper())
+            Frame(symbol.lower(), gspace, df)
             # calculate maximum number of periods
             df_len = len(df)
             if df_len > n_periods:

@@ -26,18 +26,16 @@
 # Imports
 #
 
-from alphapy.calendrical import biz_day_month
-from alphapy.calendrical import biz_day_week
-from alphapy.globals import NULLTEXT
-from alphapy.globals import BSEP, PSEP, USEP
-from alphapy.variables import vexec
-
 import itertools
 import logging
 import math
+
 import numpy as np
 import pandas as pd
 
+from alphapy.calendrical import biz_day_month, biz_day_week, get_rdate
+from alphapy.globals import BSEP, NULLTEXT, PSEP, USEP
+from alphapy.variables import vexec
 
 #
 # Initialize logger
@@ -50,7 +48,8 @@ logger = logging.getLogger(__name__)
 # Function abovema
 #
 
-def abovema(f, c, p = 50):
+
+def abovema(f, c, p=50):
     r"""Determine those values of the dataframe that are above the
     moving average.
 
@@ -77,7 +76,8 @@ def abovema(f, c, p = 50):
 # Function adx
 #
 
-def adx(f, p = 14):
+
+def adx(f, p=14):
     r"""Calculate the Average Directional Index (ADX).
 
     Parameters
@@ -103,9 +103,9 @@ def adx(f, p = 14):
     .. [WIKI_ADX] https://en.wikipedia.org/wiki/Average_directional_movement_index
 
     """
-    c1 = 'diplus'
+    c1 = "diplus"
     vexec(f, c1)
-    c2 = 'diminus'
+    c2 = "diminus"
     vexec(f, c2)
     # calculations
     dip = f[c1]
@@ -120,7 +120,8 @@ def adx(f, p = 14):
 # Function belowma
 #
 
-def belowma(f, c, p = 50):
+
+def belowma(f, c, p=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
@@ -146,7 +147,8 @@ def belowma(f, c, p = 50):
 #
 # Function c2max
 #
-    
+
+
 def c2max(f, c1, c2):
     r"""Take the maximum value between two columns in a dataframe.
 
@@ -172,7 +174,8 @@ def c2max(f, c1, c2):
 #
 # Function c2min
 #
-    
+
+
 def c2min(f, c1, c2):
     r"""Take the minimum value between two columns in a dataframe.
 
@@ -199,7 +202,8 @@ def c2min(f, c1, c2):
 # Function diff
 #
 
-def diff(f, c, n = 1):
+
+def diff(f, c, n=1):
     r"""Calculate the n-th order difference for the given variable.
 
     Parameters
@@ -225,7 +229,8 @@ def diff(f, c, n = 1):
 # Function diminus
 #
 
-def diminus(f, p = 14):
+
+def diminus(f, p=14):
     r"""Calculate the Minus Directional Indicator (-DI).
 
     Parameters
@@ -249,11 +254,11 @@ def diminus(f, p = 14):
     .. [IP_NDI] http://www.investopedia.com/terms/n/negativedirectionalindicator.asp
 
     """
-    tr = 'truerange'
+    tr = "truerange"
     vexec(f, tr)
-    atr = USEP.join(['atr', str(p)])
+    atr = USEP.join(["atr", str(p)])
     vexec(f, atr)
-    dmm = 'dmminus'
+    dmm = "dmminus"
     f[dmm] = dminus(f)
     new_column = 100 * dminus(f).ewm(span=p).mean() / f[atr]
     return new_column
@@ -263,7 +268,8 @@ def diminus(f, p = 14):
 # Function diplus
 #
 
-def diplus(f, p = 14):
+
+def diplus(f, p=14):
     r"""Calculate the Plus Directional Indicator (+DI).
 
     Parameters
@@ -287,11 +293,11 @@ def diplus(f, p = 14):
     .. [IP_PDI] http://www.investopedia.com/terms/p/positivedirectionalindicator.asp
 
     """
-    tr = 'truerange'
+    tr = "truerange"
     vexec(f, tr)
-    atr = USEP.join(['atr', str(p)])
+    atr = USEP.join(["atr", str(p)])
     vexec(f, atr)
-    dmp = 'dmplus'
+    dmp = "dmplus"
     vexec(f, dmp)
     new_column = 100 * f[dmp].ewm(span=p).mean() / f[atr]
     return new_column
@@ -300,6 +306,7 @@ def diplus(f, p = 14):
 #
 # Function dminus
 #
+
 
 def dminus(f):
     r"""Calculate the Minus Directional Movement (-DM).
@@ -323,10 +330,10 @@ def dminus(f):
     would simply be entered as zero* [SC_ADX]_.
 
     """
-    c1 = 'downmove'
-    f[c1] = -net(f, 'low')
-    c2 = 'upmove'
-    f[c2] = net(f, 'high')
+    c1 = "downmove"
+    f[c1] = -net(f, "low")
+    c2 = "upmove"
+    f[c2] = net(f, "high")
     new_column = f.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
@@ -334,6 +341,7 @@ def dminus(f):
 #
 # Function dmplus
 #
+
 
 def dmplus(f):
     r"""Calculate the Plus Directional Movement (+DM).
@@ -359,10 +367,10 @@ def dmplus(f):
     .. [SC_ADX] http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:average_directional_index_adx
 
     """
-    c1 = 'upmove'
-    f[c1] = net(f, 'high')
-    c2 = 'downmove'
-    f[c2] = -net(f, 'low')
+    c1 = "upmove"
+    f[c1] = net(f, "high")
+    c2 = "downmove"
+    f[c2] = -net(f, "low")
     new_column = f.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
@@ -370,6 +378,7 @@ def dmplus(f):
 #
 # Function down
 #
+
 
 def down(f, c):
     r"""Find the negative values in the series.
@@ -395,6 +404,7 @@ def down(f, c):
 # Function dpc
 #
 
+
 def dpc(f, c):
     r"""Get the negative values, with positive values zeroed.
 
@@ -419,7 +429,8 @@ def dpc(f, c):
 # Function ema
 #
 
-def ema(f, c, p = 20):
+
+def ema(f, c, p=20):
     r"""Calculate the mean on a rolling basis.
 
     Parameters
@@ -453,6 +464,7 @@ def ema(f, c, p = 20):
 # Function extract_bizday
 #
 
+
 def extract_bizday(f, c):
     r"""Extract business day of month and week.
 
@@ -473,11 +485,11 @@ def extract_bizday(f, c):
     try:
         date_features = extract_date(f, c)
         rdate = date_features.apply(get_rdate, axis=1)
-        bdm = pd.Series(rdate.apply(biz_day_month), name='bizday_month')
-        bdw = pd.Series(rdate.apply(biz_day_week), name='bizday_week')
+        bdm = pd.Series(rdate.apply(biz_day_month), name="bizday_month")
+        bdw = pd.Series(rdate.apply(biz_day_week), name="bizday_week")
         frames = [date_features, bdm, bdw]
         date_features = pd.concat(frames, axis=1)
-    except:
+    except (KeyError, AttributeError, TypeError):
         logger.info("Could not extract business date information from %s column", c)
     return date_features
 
@@ -485,6 +497,7 @@ def extract_bizday(f, c):
 #
 # Function extract_date
 #
+
 
 def extract_date(f, c):
     r"""Extract date into its components: year, month, day, dayofweek.
@@ -505,13 +518,13 @@ def extract_date(f, c):
     fc = pd.to_datetime(f[c])
     date_features = pd.DataFrame()
     try:
-        fyear = pd.Series(fc.dt.year, name='year')
-        fmonth = pd.Series(fc.dt.month, name='month')
-        fday = pd.Series(fc.dt.day, name='day')
-        fdow = pd.Series(fc.dt.dayofweek, name='day_of_week')
+        fyear = pd.Series(fc.dt.year, name="year")
+        fmonth = pd.Series(fc.dt.month, name="month")
+        fday = pd.Series(fc.dt.day, name="day")
+        fdow = pd.Series(fc.dt.dayofweek, name="day_of_week")
         frames = [fyear, fmonth, fday, fdow]
         date_features = pd.concat(frames, axis=1)
-    except:
+    except (KeyError, AttributeError, TypeError):
         logger.info("Could not extract date information from %s column", c)
     return date_features
 
@@ -519,6 +532,7 @@ def extract_date(f, c):
 #
 # Function extract_time
 #
+
 
 def extract_time(f, c):
     r"""Extract time into its components: hour, minute, second.
@@ -539,12 +553,12 @@ def extract_time(f, c):
     fc = pd.to_datetime(f[c])
     time_features = pd.DataFrame()
     try:
-        fhour = pd.Series(fc.dt.hour, name='year')
-        fminute = pd.Series(fc.dt.minute, name='month')
-        fsecond = pd.Series(fc.dt.second, name='day')
+        fhour = pd.Series(fc.dt.hour, name="year")
+        fminute = pd.Series(fc.dt.minute, name="month")
+        fsecond = pd.Series(fc.dt.second, name="day")
         frames = [fhour, fminute, fsecond]
         time_features = pd.concat(frames, axis=1)
-    except:
+    except (KeyError, AttributeError, TypeError):
         logger.info("Could not extract time information from %s column", c)
     return time_features
 
@@ -552,6 +566,7 @@ def extract_time(f, c):
 #
 # Function gap
 #
+
 
 def gap(f):
     r"""Calculate the gap percentage between the current open and
@@ -576,8 +591,8 @@ def gap(f):
     .. [IP_GAP] http://www.investopedia.com/terms/g/gap.asp
 
     """
-    c1 = 'open'
-    c2 = 'close[1]'
+    c1 = "open"
+    c2 = "close[1]"
     vexec(f, c2)
     new_column = 100 * pchange2(f, c1, c2)
     return new_column
@@ -586,6 +601,7 @@ def gap(f):
 #
 # Function gapbadown
 #
+
 
 def gapbadown(f):
     r"""Determine whether or not there has been a breakaway gap down.
@@ -608,13 +624,14 @@ def gapbadown(f):
     .. [IP_BAGAP] http://www.investopedia.com/terms/b/breakawaygap.asp
 
     """
-    new_column = f['open'] < f['low'].shift(1)
+    new_column = f["open"] < f["low"].shift(1)
     return new_column
 
 
 #
 # Function gapbaup
 #
+
 
 def gapbaup(f):
     r"""Determine whether or not there has been a breakaway gap up.
@@ -635,13 +652,14 @@ def gapbaup(f):
     supported by levels of high volume* [IP_BAGAP]_.
 
     """
-    new_column = f['open'] > f['high'].shift(1)
+    new_column = f["open"] > f["high"].shift(1)
     return new_column
 
 
 #
 # Function gapdown
 #
+
 
 def gapdown(f):
     r"""Determine whether or not there has been a gap down.
@@ -663,13 +681,14 @@ def gapdown(f):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f['open'] < f['close'].shift(1)
+    new_column = f["open"] < f["close"].shift(1)
     return new_column
 
 
 #
 # Function gapup
 #
+
 
 def gapup(f):
     r"""Determine whether or not there has been a gap up.
@@ -691,13 +710,14 @@ def gapup(f):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f['open'] > f['close'].shift(1)
+    new_column = f["open"] > f["close"].shift(1)
     return new_column
 
 
 #
 # Function gtval
 #
+
 
 def gtval(f, c1, c2):
     r"""Determine whether or not the first column of a dataframe
@@ -726,10 +746,11 @@ def gtval(f, c1, c2):
 # Function gtval0
 #
 
+
 def gtval0(f, c1, c2):
     r"""For positive values in the first column of the dataframe
     that are greater than the second column, get the value in
-    the first column, otherwise return zero. 
+    the first column, otherwise return zero.
 
     Parameters
     ----------
@@ -746,10 +767,7 @@ def gtval0(f, c1, c2):
         A positive value or zero.
 
     """
-    if f[c1] > f[c2] and f[c1] > 0:
-        new_val = f[c1]
-    else:
-        new_val = 0
+    new_val = f[c1] if f[c1] > f[c2] and f[c1] > 0 else 0
     return new_val
 
 
@@ -757,7 +775,8 @@ def gtval0(f, c1, c2):
 # Function higher
 #
 
-def higher(f, c, o = 1):
+
+def higher(f, c, o=1):
     r"""Determine whether or not a series value is higher than
     the value ``o`` periods back.
 
@@ -784,7 +803,8 @@ def higher(f, c, o = 1):
 # Function highest
 #
 
-def highest(f, c, p = 20):
+
+def highest(f, c, p=20):
     r"""Calculate the highest value on a rolling basis.
 
     Parameters
@@ -810,7 +830,8 @@ def highest(f, c, p = 20):
 # Function hlrange
 #
 
-def hlrange(f, p = 1):
+
+def hlrange(f, p=1):
     r"""Calculate the Range, the difference between High and Low.
 
     Parameters
@@ -826,7 +847,7 @@ def hlrange(f, p = 1):
         The array containing the new feature.
 
     """
-    new_column = highest(f, 'high', p) - lowest(f, 'low', p)
+    new_column = highest(f, "high", p) - lowest(f, "low", p)
     return new_column
 
 
@@ -834,7 +855,8 @@ def hlrange(f, p = 1):
 # Function lower
 #
 
-def lower(f, c, o = 1):
+
+def lower(f, c, o=1):
     r"""Determine whether or not a series value is lower than
     the value ``o`` periods back.
 
@@ -861,7 +883,8 @@ def lower(f, c, o = 1):
 # Function lowest
 #
 
-def lowest(f, c, p = 20):
+
+def lowest(f, c, p=20):
     r"""Calculate the lowest value on a rolling basis.
 
     Parameters
@@ -886,7 +909,8 @@ def lowest(f, c, p = 20):
 # Function ma
 #
 
-def ma(f, c, p = 20):
+
+def ma(f, c, p=20):
     r"""Calculate the mean on a rolling basis.
 
     Parameters
@@ -920,7 +944,8 @@ def ma(f, c, p = 20):
 # Function maratio
 #
 
-def maratio(f, c, p1 = 1, p2 = 10):
+
+def maratio(f, c, p1=1, p2=10):
     r"""Calculate the ratio of two moving averages.
 
     Parameters
@@ -947,7 +972,8 @@ def maratio(f, c, p1 = 1, p2 = 10):
 #
 # Function mval
 #
-   
+
+
 def mval(f, c):
     r"""Get the negative value, otherwise zero.
 
@@ -972,7 +998,8 @@ def mval(f, c):
 # Function net
 #
 
-def net(f, c='close', o = 1):
+
+def net(f, c="close", o=1):
     r"""Calculate the net change of a given column.
 
     Parameters
@@ -1006,7 +1033,8 @@ def net(f, c='close', o = 1):
 # Function netreturn
 #
 
-def netreturn(f, c, o = 1):
+
+def netreturn(f, c, o=1):
     r"""Calculate the net return, or Return On Invesment (ROI)
 
     Parameters
@@ -1040,8 +1068,9 @@ def netreturn(f, c, o = 1):
 #
 # Function pchange1
 #
-    
-def pchange1(f, c, o = 1):
+
+
+def pchange1(f, c, o=1):
     r"""Calculate the percentage change within the same variable.
 
     Parameters
@@ -1066,6 +1095,7 @@ def pchange1(f, c, o = 1):
 #
 # Function pchange2
 #
+
 
 def pchange2(f, c1, c2):
     r"""Calculate the percentage change between two variables.
@@ -1092,7 +1122,8 @@ def pchange2(f, c1, c2):
 #
 # Function pval
 #
-  
+
+
 def pval(f, c):
     r"""Get the positive value, otherwise zero.
 
@@ -1117,7 +1148,8 @@ def pval(f, c):
 # Function rindex
 #
 
-def rindex(f, ci, ch, cl, p = 1):
+
+def rindex(f, ci, ch, cl, p=1):
     r"""Calculate the *range index* spanning a given period ``p``.
 
     The **range index** is a number between 0 and 100 that
@@ -1147,7 +1179,7 @@ def rindex(f, ci, ch, cl, p = 1):
         The array containing the new feature.
 
     """
-    o = p-1 if f[ci].name == 'open' else 0
+    o = p - 1 if f[ci].name == "open" else 0
     hh = highest(f, ch, p)
     ll = lowest(f, cl, p)
     fn = f[ci].shift(o) - ll
@@ -1160,7 +1192,8 @@ def rindex(f, ci, ch, cl, p = 1):
 # Function rsi
 #
 
-def rsi(f, c, p = 14):
+
+def rsi(f, c, p=14):
     r"""Calculate the Relative Strength Index (RSI).
 
     Parameters
@@ -1185,12 +1218,12 @@ def rsi(f, c, p = 14):
     .. [SC_RSI] http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:relative_strength_index_rsi
 
     """
-    cdiff = 'net'
+    cdiff = "net"
     vexec(f, cdiff)
-    f['pval'] = upc(f, cdiff)
-    f['mval'] = dpc(f, cdiff)
-    upcs = ma(f, 'pval', p)
-    dpcs = ma(f, 'mval', p)
+    f["pval"] = upc(f, cdiff)
+    f["mval"] = dpc(f, cdiff)
+    upcs = ma(f, "pval", p)
+    dpcs = ma(f, "mval", p)
     new_column = 100 - (100 / (1 + (upcs / dpcs)))
     return new_column
 
@@ -1198,6 +1231,7 @@ def rsi(f, c, p = 14):
 #
 # Function rtotal
 #
+
 
 def rtotal(vec):
     r"""Calculate the running total.
@@ -1228,6 +1262,7 @@ def rtotal(vec):
 # Function runs
 #
 
+
 def runs(vec):
     r"""Calculate the total number of runs.
 
@@ -1254,6 +1289,7 @@ def runs(vec):
 #
 # Function runs_test
 #
+
 
 def runs_test(f, c, wfuncs, window):
     r"""Perform a runs test on binary series.
@@ -1295,12 +1331,9 @@ def runs_test(f, c, wfuncs, window):
     """
 
     fc = f[c]
-    all_funcs = {'runs'   : runs,
-                 'streak' : streak,
-                 'rtotal' : rtotal,
-                 'zscore' : zscore}
+    all_funcs = {"runs": runs, "streak": streak, "rtotal": rtotal, "zscore": zscore}
     # use all functions
-    if 'all' in wfuncs:
+    if "all" in wfuncs:
         wfuncs = list(all_funcs.keys())
     # apply each of the runs functions
     new_features = pd.DataFrame()
@@ -1320,6 +1353,7 @@ def runs_test(f, c, wfuncs, window):
 #
 # Function split_to_letters
 #
+
 
 def split_to_letters(f, c):
     r"""Separate text into distinct characters.
@@ -1344,7 +1378,7 @@ def split_to_letters(f, c):
     fc = f[c]
     new_feature = None
     dtype = fc.dtypes
-    if dtype == 'object':
+    if dtype == "object":
         fc.fillna(NULLTEXT, inplace=True)
         maxlen = fc.astype(str).str.len().max()
         if maxlen > 1:
@@ -1355,6 +1389,7 @@ def split_to_letters(f, c):
 #
 # Function streak
 #
+
 
 def streak(vec):
     r"""Determine the length of the latest streak.
@@ -1382,6 +1417,7 @@ def streak(vec):
 #
 # Function texplode
 #
+
 
 def texplode(f, c):
     r"""Get dummy values for a text column.
@@ -1420,7 +1456,7 @@ def texplode(f, c):
     fc = f[c]
     maxlen = fc.astype(str).str.len().max()
     fc.fillna(maxlen * BSEP, inplace=True)
-    fpad = str().join(['{:', BSEP, '>', str(maxlen), '}'])
+    fpad = "".join(["{:", BSEP, ">", str(maxlen), "}"])
     fcpad = fc.apply(fpad.format)
     fcex = fcpad.apply(lambda x: pd.Series(list(x)))
     dummies = pd.get_dummies(fcex)
@@ -1430,6 +1466,7 @@ def texplode(f, c):
 #
 # Function truehigh
 #
+
 
 def truehigh(f):
     r"""Calculate the *True High* value.
@@ -1451,9 +1488,9 @@ def truehigh(f):
     .. [TS_TR] http://help.tradestation.com/09_01/tradestationhelp/charting_definitions/true_range.htm
 
     """
-    c1 = 'low[1]'
+    c1 = "low[1]"
     vexec(f, c1)
-    c2 = 'high'
+    c2 = "high"
     new_column = f.apply(c2max, axis=1, args=[c1, c2])
     return new_column
 
@@ -1461,6 +1498,7 @@ def truehigh(f):
 #
 # Function truelow
 #
+
 
 def truelow(f):
     r"""Calculate the *True Low* value.
@@ -1480,9 +1518,9 @@ def truelow(f):
     *Today's low, or the previous close, whichever is lower* [TS_TR]_.
 
     """
-    c1 = 'high[1]'
+    c1 = "high[1]"
     vexec(f, c1)
-    c2 = 'low'
+    c2 = "low"
     new_column = f.apply(c2min, axis=1, args=[c1, c2])
     return new_column
 
@@ -1490,6 +1528,7 @@ def truelow(f):
 #
 # Function truerange
 #
+
 
 def truerange(f):
     r"""Calculate the *True Range* value.
@@ -1517,6 +1556,7 @@ def truerange(f):
 # Function up
 #
 
+
 def up(f, c):
     r"""Find the positive values in the series.
 
@@ -1540,6 +1580,7 @@ def up(f, c):
 #
 # Function upc
 #
+
 
 def upc(f, c):
     r"""Get the positive values, with negative values zeroed.
@@ -1565,7 +1606,8 @@ def upc(f, c):
 # Function xmadown
 #
 
-def xmadown(f, c='close', pfast = 20, pslow = 50):
+
+def xmadown(f, c="close", pfast=20, pslow=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
@@ -1608,7 +1650,8 @@ def xmadown(f, c='close', pfast = 20, pslow = 50):
 # Function xmaup
 #
 
-def xmaup(f, c='close', pfast = 20, pslow = 50):
+
+def xmaup(f, c="close", pfast=20, pslow=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
@@ -1649,6 +1692,7 @@ def xmaup(f, c='close', pfast = 20, pslow = 50):
 # Function zscore
 #
 
+
 def zscore(vec):
     r"""Calculate the Z-Score.
 
@@ -1682,8 +1726,5 @@ def zscore(vec):
     sr2num = fac1 * (fac1 - n1 - n2)
     sr2den = math.pow(fac2, 2) * (fac2 - 1)
     sr = math.sqrt(sr2num / sr2den)
-    if sr2den and sr:
-        zscore = (runs(vec) - rbar) / sr
-    else:
-        zscore = 0
+    zscore = (runs(vec) - rbar) / sr if sr2den and sr else 0
     return zscore

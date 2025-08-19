@@ -28,10 +28,10 @@
 
 from alphapy.globals import USEP
 
-
 #
 # Function space_name
 #
+
 
 def space_name(subject, schema, fractal):
     r"""Get the namespace string.
@@ -53,11 +53,12 @@ def space_name(subject, schema, fractal):
     """
     name = USEP.join([subject, schema, fractal])
     return name
-    
+
 
 #
 # Class Space
 #
+
 
 class Space:
     """Create a new namespace.
@@ -72,18 +73,15 @@ class Space:
         The time fractal of the data, e.g., "5m" or "1d".
 
     """
-    
+
     # __init__
-    
-    def __init__(self,
-                 subject = "stock",
-                 schema = "prices",
-                 fractal = "1d"):
+
+    def __init__(self, subject="stock", schema="prices", fractal="1d"):
         # code
         self.subject = subject
         self.schema = schema
         self.fractal = fractal
-        
+
     # __str__
 
     def __str__(self):

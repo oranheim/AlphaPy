@@ -26,19 +26,15 @@
 # Imports
 #
 
-from alphapy.globals import ModelType
 
-from datetime import datetime
 import itertools
 import logging
-import numpy as np
-from sklearn.feature_selection import RFECV
-from sklearn.feature_selection import SelectPercentile
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.pipeline import Pipeline
 from time import time
 
+import numpy as np
+from sklearn.feature_selection import RFECV, SelectPercentile
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.pipeline import Pipeline
 
 #
 # Initialize logger
@@ -50,6 +46,7 @@ logger = logging.getLogger(__name__)
 #
 # Function rfecv_search
 #
+
 
 def rfecv_search(model, algo):
     r"""Return the best feature set using recursive feature elimination
@@ -90,24 +87,21 @@ def rfecv_search(model, algo):
 
     # Extract model parameters.
 
-    cv_folds = model.specs['cv_folds']
-    n_jobs = model.specs['n_jobs']
-    rfe_step = model.specs['rfe_step']
-    scorer = model.specs['scorer']
-    verbosity = model.specs['verbosity']
+    cv_folds = model.specs["cv_folds"]
+    n_jobs = model.specs["n_jobs"]
+    rfe_step = model.specs["rfe_step"]
+    scorer = model.specs["scorer"]
+    verbosity = model.specs["verbosity"]
     estimator = model.estimators[algo]
 
     # Perform Recursive Feature Elimination
 
     logger.info("Recursive Feature Elimination with CV")
-    rfecv = RFECV(estimator, step=rfe_step, cv=cv_folds,
-                  scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
+    rfecv = RFECV(estimator, step=rfe_step, cv=cv_folds, scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
     start = time()
     selector = rfecv.fit(X_train, y_train)
-    logger.info("RFECV took %.2f seconds for step %d and %d folds",
-                (time() - start), rfe_step, cv_folds)
-    logger.info("Algorithm: %s, Selected Features: %d, Ranking: %s",
-                algo, selector.n_features_, selector.ranking_)
+    logger.info("RFECV took %.2f seconds for step %d and %d folds", (time() - start), rfe_step, cv_folds)
+    logger.info("Algorithm: %s, Selected Features: %d, Ranking: %s", algo, selector.n_features_, selector.ranking_)
 
     # Record the new estimator, support vector, feature names, and importances
 
@@ -127,6 +121,7 @@ def rfecv_search(model, algo):
 # Function grid_report
 #
 
+
 def grid_report(results, n_top=3):
     r"""Report the top grid search scores.
 
@@ -143,18 +138,21 @@ def grid_report(results, n_top=3):
 
     """
     for i in range(1, n_top + 1):
-        candidates = np.flatnonzero(results['rank_test_score'] == i)
+        candidates = np.flatnonzero(results["rank_test_score"] == i)
         for candidate in candidates:
-            logger.info("Model with rank: {0}".format(i))
-            logger.info("Mean validation score: {0:.3f} (std: {1:.3f})".format(
-                        results['mean_test_score'][candidate],
-                        results['std_test_score'][candidate]))
-            logger.info("Parameters: {0}".format(results['params'][candidate]))
+            logger.info(f"Model with rank: {i}")
+            logger.info(
+                "Mean validation score: {:.3f} (std: {:.3f})".format(
+                    results["mean_test_score"][candidate], results["std_test_score"][candidate]
+                )
+            )
+            logger.info("Parameters: {}".format(results["params"][candidate]))
 
 
 #
 # Function hyper_grid_search
 #
+
 
 def hyper_grid_search(model, estimator):
     r"""Return the best hyperparameters for a grid search.
@@ -208,49 +206,49 @@ def hyper_grid_search(model, estimator):
     try:
         support = model.support[algo]
         X_train = model.X_train[:, support]
-    except:
+    except (KeyError, IndexError, TypeError):
         X_train = model.X_train
     y_train = model.y_train
 
     # Extract model parameters.
 
-    cv_folds = model.specs['cv_folds']
-    feature_selection = model.specs['feature_selection']
-    fs_percentage = model.specs['fs_percentage']
-    fs_score_func = model.specs['fs_score_func']
-    fs_uni_grid = model.specs['fs_uni_grid']
-    gs_iters = model.specs['gs_iters']
-    gs_random = model.specs['gs_random']
-    gs_sample = model.specs['gs_sample']
-    gs_sample_pct = model.specs['gs_sample_pct']
-    n_jobs = model.specs['n_jobs']
-    scorer = model.specs['scorer']
-    verbosity = model.specs['verbosity']
+    cv_folds = model.specs["cv_folds"]
+    feature_selection = model.specs["feature_selection"]
+    fs_percentage = model.specs["fs_percentage"]
+    fs_score_func = model.specs["fs_score_func"]
+    fs_uni_grid = model.specs["fs_uni_grid"]
+    gs_iters = model.specs["gs_iters"]
+    gs_random = model.specs["gs_random"]
+    gs_sample = model.specs["gs_sample"]
+    gs_sample_pct = model.specs["gs_sample_pct"]
+    n_jobs = model.specs["n_jobs"]
+    scorer = model.specs["scorer"]
+    verbosity = model.specs["verbosity"]
 
     # Subsample if necessary to reduce grid search duration.
 
     if gs_sample:
         length = len(X_train)
         subset = int(length * gs_sample_pct)
-        indices = np.random.choice(length, subset, replace=False)
+        rng = np.random.default_rng()
+        indices = rng.choice(length, subset, replace=False)
         X_train = X_train[indices]
         y_train = y_train[indices]
 
     # Convert the grid to pipeline format
 
     grid_new = {}
-    for k, v in list(grid.items()):
-        new_key = '__'.join(['est', k])
+    for k, _v in list(grid.items()):
+        new_key = "__".join(["est", k])
         grid_new[new_key] = grid[k]
 
     # Create the pipeline for grid search
 
     if feature_selection:
         # Augment the grid for feature selection.
-        fs = SelectPercentile(score_func=fs_score_func,
-                              percentile=fs_percentage)
+        fs = SelectPercentile(score_func=fs_score_func, percentile=fs_percentage)
         # Combine the feature selection and estimator grids.
-        fs_grid = dict(fs__percentile=fs_uni_grid)
+        fs_grid = {"fs__percentile": fs_uni_grid}
         grid_new.update(fs_grid)
         # Create a pipeline with the selected features and estimator.
         pipeline = Pipeline([("fs", fs), ("est", est)])
@@ -261,30 +259,37 @@ def hyper_grid_search(model, estimator):
 
     if gs_random:
         logger.info("Randomized Grid Search")
-        gscv = RandomizedSearchCV(pipeline, param_distributions=grid_new,
-                                  n_iter=gs_iters, scoring=scorer,
-                                  n_jobs=n_jobs, cv=cv_folds, verbose=verbosity)
+        gscv = RandomizedSearchCV(
+            pipeline,
+            param_distributions=grid_new,
+            n_iter=gs_iters,
+            scoring=scorer,
+            n_jobs=n_jobs,
+            cv=cv_folds,
+            verbose=verbosity,
+        )
     else:
         logger.info("Full Grid Search")
-        gscv = GridSearchCV(pipeline, param_grid=grid_new, scoring=scorer,
-                            n_jobs=n_jobs, cv=cv_folds, verbose=verbosity)
+        gscv = GridSearchCV(
+            pipeline, param_grid=grid_new, scoring=scorer, n_jobs=n_jobs, cv=cv_folds, verbose=verbosity
+        )
 
     # Fit the randomized search and time it.
 
     start = time()
     gscv.fit(X_train, y_train)
     if gs_iters > 0:
-        logger.info("Grid Search took %.2f seconds for %d candidate"
-                    " parameter settings." % ((time() - start), gs_iters))
+        logger.info("Grid Search took %.2f seconds for %d candidate parameter settings." % ((time() - start), gs_iters))
     else:
-        logger.info("Grid Search took %.2f seconds for %d candidate parameter"
-                    " settings." % (time() - start, len(gscv.cv_results_['params'])))
+        logger.info(
+            "Grid Search took %.2f seconds for %d candidate parameter"
+            " settings." % (time() - start, len(gscv.cv_results_["params"]))
+        )
 
     # Log the grid search scoring statistics.
 
     grid_report(gscv.cv_results_)
-    logger.info("Algorithm: %s, Best Score: %.4f, Best Parameters: %s",
-                algo, gscv.best_score_, gscv.best_params_)
+    logger.info("Algorithm: %s, Best Score: %.4f, Best Parameters: %s", algo, gscv.best_score_, gscv.best_params_)
 
     # Assign the Grid Search estimator for this algorithm
 
